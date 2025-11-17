@@ -7,12 +7,12 @@ permissions:
 on:
   workflow_dispatch:
   #push:
-  schedule:
-    - cron: "0 2/3 * * *"
+  #schedule:
+  #  - cron: "0 2/3 * * *"
 
 env:
-  REMOTE_REPOSITORY: openwrt/openwrt
-  REMOTE_BRANCH: main
+  REMOTE_REPOSITORY: qosmio/openwrt-ipq
+  REMOTE_BRANCH: main-nss
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: main
@@ -67,7 +67,7 @@ jobs:
           
       - name: Add custom patches
         run: |
-          df -h
+          df -hT
           if [ -d "builder_repo/patches" ] && [ "$(ls -A builder_repo/patches 2>/dev/null)" ]; then
             mv builder_repo/patches/* ./
             for patch in *.patch; do
@@ -80,17 +80,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PAT_TOKEN: ${{ secrets.FETCH }}
         run: |
-          df -h
+          df -hT
           #gh api -H "Accept: application/vnd.github.raw+json" /repos/pmyy-wt/jdcloud_re-cs-03/contents/re-cs-03-nss.patch --jq '.content' -F ref=main | base64 --decode > re-cs-03-nss.patch
-          curl -H "Authorization: token ${PAT_TOKEN}" -OL "https://raw.githubusercontent.com/pmyy-wt/jdcloud_re-cs-03/3fc48056a27126e9d8ad4eb7d028aa4f6d36a0a1/re-cs-03-nss.patch"
+          curl -H "Authorization: token ${PAT_TOKEN}" -OL "https://raw.githubusercontent.com/pmyy-wt/jdcloud_re-cs-03/refs/heads/main/re-cs-03-nss.patch"
           ls -al re-cs-03-nss.patch && sha256sum re-cs-03-nss.patch
           git apply --verbose --ignore-space-change re-cs-03-nss.patch
             
       - name: Update and install feeds
         run: |
-          df -h
+          df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages && ./scripts/feeds install -a -p nss_packages && ./scripts/feeds install -a -p sqm_scripts_nss
           #git clone https://github.com/xiaorouji/openwrt-passwall2.git package/feeds/luci/luci-app-passwall2
           #git clone https://github.com/xiaorouji/openwrt-passwall-packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
@@ -98,25 +98,25 @@ jobs:
           #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
           #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
-          unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
+          #unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
 
       - name: Setup configuration and custom files
         run: |
-          df -h
+          df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
 
       - name: Use /mnt for more disk space
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -h
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
           restore-keys: |
@@ -129,18 +129,18 @@ jobs:
 
       - name: Download packages
         run: |
-          df -h
           ./scripts/feeds update -a
           make download -j$(nproc)
+          df -hT
           
       - name: Build firmware
         env: 
           CMAKE_POLICY_VERSION_MINIMUM: 3.5
         run: |
-          df -h
-          make check -j$(nproc) FIXUP=1 V=s
+          #make check -j$(nproc) FIXUP=1 V=s
           make -j$(nproc) || make -j1 V=s  # Retry single-threaded on failure
           tar cvzf bin/targets/qualcommax/ipq50xx/snapshots.tar.gz -C bin packages/aarch64_cortex-a53 targets/qualcommax/ipq50xx/packages
+          df -hT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -150,12 +150,12 @@ jobs:
 
       - name: Check disk space usage
         if: always()
-        run: df -h
+        run: df -hT
         
   release:
     name: Create release
     needs: [check_commits, build]
-    if: needs.build.result == 'success'
+    if: needs.build.result == 'success' && ${{ !always() }}
     runs-on: ubuntu-24.04
     steps:
       - name: Download artifacts
