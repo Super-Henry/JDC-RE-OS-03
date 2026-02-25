@@ -419,11 +419,11 @@ x0cAiLPzIC%Wk4BF29yD1Kp9X5lmTTx8Bhk40cAiLPzIC%Wk4BF2Ih!?{|^?yL+bzl
 literal 0
 HcmV?d00001
 
-diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-re-cs-03.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-re-cs-03.dts
+diff --git a/target/linux/qualcommax/dts/ipq5018-re-cs-03.dts b/target/linux/qualcommax/dts/ipq5018-re-cs-03.dts
 new file mode 100644
 index 0000000000..16d465448d
 --- /dev/null
-+++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-re-cs-03.dts
++++ b/target/linux/qualcommax/dts/ipq5018-re-cs-03.dts
 @@ -0,0 +1,386 @@
 +/dts-v1/;
 +
