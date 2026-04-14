@@ -11,12 +11,12 @@ on:
   #  - cron: "0 */2 * * *"
 
 env:
-  REMOTE_REPOSITORY: qosmio/openwrt-ipq
+  REMOTE_REPOSITORY: Super-Henry/OPENWRT-IPQ
   REMOTE_BRANCH: main-nss
   CONFIG_FILE: ax3600.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: main-nss
-  NSS_PACKAGES_REPOSITORY: qosmio/nss-packages
+  NSS_PACKAGES_REPOSITORY: Super-Henry/NSS-PACKAGES
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
 
 jobs:
