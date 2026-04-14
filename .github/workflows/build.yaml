@@ -12,7 +12,7 @@ on:
 
 env:
   REMOTE_REPOSITORY: Super-Henry/openwrt
-  REMOTE_BRANCH: main
+  REMOTE_BRANCH: development-version
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: development
