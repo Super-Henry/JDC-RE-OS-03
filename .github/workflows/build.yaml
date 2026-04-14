@@ -15,7 +15,7 @@ env:
   REMOTE_BRANCH: main
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
-  RELEASE_PREFIX: main
+  RELEASE_PREFIX: development
   NSS_PACKAGES_REPOSITORY: qosmio/nss-packages
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
 
