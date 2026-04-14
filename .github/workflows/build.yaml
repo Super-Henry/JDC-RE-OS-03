@@ -11,7 +11,7 @@ on:
     - cron: "0 2/3 * * *"
 
 env:
-  REMOTE_REPOSITORY: openwrt/openwrt
+  REMOTE_REPOSITORY: Super-Henry/openwrt
   REMOTE_BRANCH: main
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
