@@ -1,4 +1,4 @@
-name: Build OpenWrt - Henry Custom
+name: Build OpenWrt Henry custom
 
 permissions:
   contents: write
