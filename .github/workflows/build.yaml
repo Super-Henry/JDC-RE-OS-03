@@ -5,17 +5,18 @@ permissions:
   actions: write
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-  #push:
-  schedule:
-    - cron: "0 2/3 * * *"
 
 env:
   REMOTE_REPOSITORY: openwrt/openwrt
   REMOTE_BRANCH: main
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
-  RELEASE_PREFIX: RE-CS-03
+  RELEASE_PREFIX: main
+  ENV: main
   NSS_PACKAGES_REPOSITORY: qosmio/nss-packages
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
 
