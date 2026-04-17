@@ -5,7 +5,7 @@ permissions:
   actions: write
 
 on:
-  #push:
+  push:
     branches:
       - stable-version
   workflow_dispatch:
