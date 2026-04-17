@@ -5,17 +5,18 @@ permissions:
   actions: write
 
 on:
+  push:
+    branches:
+      - development-version
   workflow_dispatch:
-  #push:
-  schedule:
-    - cron: "0 2/3 * * *"
 
 env:
   REMOTE_REPOSITORY: Super-Henry/openwrt
   REMOTE_BRANCH: development-version
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
-  RELEASE_PREFIX: development
+  RELEASE_PREFIX: development-version
+  ENV: development-version
   NSS_PACKAGES_REPOSITORY: Super-Henry/NSS-PACKAGES
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
 
