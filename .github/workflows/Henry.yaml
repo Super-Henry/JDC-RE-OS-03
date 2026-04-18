@@ -91,7 +91,6 @@ jobs:
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
           git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
-          git clone https://github.com/vernesong/OpenClash-Core.git package/utils/openclash-core
 
       - name: Setup configuration and custom files
         run: |
