@@ -90,11 +90,49 @@ jobs:
           #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
+	  git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
+	  git clone https://github.com/vernesong/OpenClash-Core.git package/utils/openclash-core
 
       - name: Setup configuration and custom files
         run: |
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
+          echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
+          #echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
+          echo "" >> .config
+          echo "CONFIG_PACKAGE_iptables=y" >> .config
+          echo "CONFIG_PACKAGE_iptables-mod-tproxy=y" >> .config
+          echo "CONFIG_PACKAGE_iptables-mod-extra=y" >> .config
+          echo "" >> .config
+          echo "CONFIG_PACKAGE_libopenssl=y" >> .config
+          echo "CONFIG_PACKAGE_libopenssl-1.1=y" >> .config
+          echo "CONFIG_OPENSSL_VERSION_1_1=y" >> .config
+          echo "CONFIG_OPENSSL_VERSION_3_0=n" >> .config
+          echo "CONFIG_OPENSSL_ENGINE_CRYPTO=y" >> .config
+          echo "CONFIG_OPENSSL_ENGINE_DIGEST=y" >> .config
+          echo "" >> .config
+          echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-nf-tproxy=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-nf-conntrack=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-nf-conntrack6=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-ipt-tproxy=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-ipt-nat=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-ipt-nat6=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-crypto-aes=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-crypto-sha256=y" >> .config
+          echo "" >> .config
+          echo "CONFIG_PACKAGE_ipset=y" >> .config
+          echo "CONFIG_PACKAGE_libcap=y" >> .config
+          echo "CONFIG_PACKAGE_bash=y" >> .config
+          echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
+          echo "CONFIG_PACKAGE_unzip=y" >> .config
+          echo "" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq=y" >> .config
           make defconfig -j$(nproc)
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
