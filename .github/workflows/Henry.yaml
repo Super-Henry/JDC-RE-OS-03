@@ -5,9 +5,9 @@ permissions:
   actions: write
 
 on:
-  push:
-    branches:
-      - development-version
+  #push:
+    #branches:
+      #- development-version
   workflow_dispatch:
 
 env:
@@ -79,25 +79,14 @@ jobs:
             
       - name: Update and install feeds
         run: |
-          df -hT
-          #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a 
-          
-          # 修复 Passwall2 克隆 - 修正路径
-          git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/luci-app-passwall2
-          git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
-          
-          git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
-          git clone --depth 1 https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
-          #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
-          #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
-          #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
+          df -h
+          ./scripts/feeds update -a
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/feeds/luci/luci-app-passwall2
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/utils/passwall2
+          git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
+          git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
+          git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
-          
-          # 修复 OpenClash 克隆 - 直接克隆到正确位置
-          git clone --depth 1 https://github.com/vernesong/OpenClash.git package/luci-app-openclash
-          
-          # 重新安装所有包以确保被识别
           ./scripts/feeds install -a
 
       - name: Setup configuration and custom files
@@ -108,7 +97,6 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
-          #echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
           echo "" >> .config
           echo "CONFIG_PACKAGE_iptables=y" >> .config
           echo "CONFIG_PACKAGE_iptables-mod-tproxy=y" >> .config
