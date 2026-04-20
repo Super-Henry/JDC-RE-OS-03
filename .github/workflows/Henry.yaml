@@ -80,63 +80,94 @@ jobs:
       - name: Update and install feeds
         run: |
           df -h
-          ./scripts/feeds update -a
+          #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
           git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
           git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
           git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
+
+          # 🔥 加入蒲公英 VPN (OpenOray)
+          mkdir -p package/openwrt-packages
+          git clone https://github.com/Super-Henry/OpenOray package/openwrt-packages/OpenOray
+
+          #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
+          #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
+          #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
-          ./scripts/feeds install -a
+          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
 
       - name: Setup configuration and custom files
         run: |
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
+          echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
+
+          # 🔥 三大插件全部内置进固件 =y
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
+          echo "CONFIG_PACKAGE_orayvpn=y" >> .config        # 蒲公英
+          echo "CONFIG_PACKAGE_luci-app-orayvpn=y" >> .config # 蒲公英LUCI
+
           echo "" >> .config
-          echo "CONFIG_PACKAGE_iptables=y" >> .config
-          echo "CONFIG_PACKAGE_iptables-mod-tproxy=y" >> .config
-          echo "CONFIG_PACKAGE_iptables-mod-extra=y" >> .config
+          echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
+          echo "CONFIG_PACKAGE_openssl=y" >> .config
+          echo "CONFIG_PACKAGE_coreutils=y" >> .config
+          echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
+          echo "CONFIG_PACKAGE_bash=y" >> .config
+          echo "CONFIG_PACKAGE_jsonfilter=y" >> .config
+          echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
+
           echo "" >> .config
-          echo "CONFIG_PACKAGE_libopenssl=y" >> .config
-          echo "CONFIG_PACKAGE_libopenssl-1.1=y" >> .config
-          echo "CONFIG_OPENSSL_VERSION_1_1=y" >> .config
-          echo "CONFIG_OPENSSL_VERSION_3_0=n" >> .config
-          echo "CONFIG_OPENSSL_ENGINE_CRYPTO=y" >> .config
-          echo "CONFIG_OPENSSL_ENGINE_DIGEST=y" >> .config
+          echo "# PassWall2 全部组件（OpenSSL 3.0）" >> .config
+          echo "CONFIG_PACKAGE_passwall2=y" >> .config
+          echo "CONFIG_PACKAGE_xray-core=y" >> .config
+          echo "CONFIG_PACKAGE_xray-plugin=y" >> .config
+          echo "CONFIG_PACKAGE_sing-box=y" >> .config
+          echo "CONFIG_PACKAGE_hysteria=y" >> .config
+          echo "CONFIG_PACKAGE_naiveproxy=y" >> .config
+          echo "CONFIG_PACKAGE_tuic-client=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocks-libev-ss-redir=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocks-libev-ss-tunnel=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocksr-libev-ssr-redir=y" >> .config
+
           echo "" >> .config
+          echo "# 必须集成内核模块" >> .config
           echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
           echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
           echo "CONFIG_PACKAGE_kmod-nf-tproxy=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-nf-conntrack=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-nf-conntrack6=y" >> .config
           echo "CONFIG_PACKAGE_kmod-ipt-tproxy=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-ipt-nat=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-ipt-nat6=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-crypto-aes=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-crypto-sha256=y" >> .config
+
           echo "" >> .config
+          echo "# 必要工具" >> .config
+          echo "CONFIG_PACKAGE_iptables=y" >> .config
+          echo "CONFIG_PACKAGE_iptables-mod-tproxy=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+          echo "CONFIG_PACKAGE_unzip=y" >> .config
+          echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
+
+          echo "" >> .config
+          echo "# 辅助组件" >> .config
           echo "CONFIG_PACKAGE_ipset=y" >> .config
           echo "CONFIG_PACKAGE_libcap=y" >> .config
-          echo "CONFIG_PACKAGE_bash=y" >> .config
-          echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
-          echo "CONFIG_PACKAGE_unzip=y" >> .config
+
+          echo "" >> .config
+          echo "# OpenSSL 双版本共存" >> .config
+          echo "# 蒲公英 -> libopenssl-1.1" >> .config
+          echo "# OpenClash/Passwall -> libopenssl (3.x)" >> .config
+          echo "CONFIG_PACKAGE_libopenssl-1.1=y" >> .config
+          echo "CONFIG_PACKAGE_libopenssl=y" >> .config
+          echo "CONFIG_OPENSSL_VERSION_1_1=y" >> .config
+          echo "CONFIG_OPENSSL_VERSION_3_0=y" >> .config
+          echo "CONFIG_OPENSSL_ENGINE_CRYPTO=y" >> .config
+          echo "CONFIG_OPENSSL_ENGINE_DIGEST=y" >> .config
+
           echo "" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
-          # 添加 OpenClash 和 PassWall 的额外依赖
-          echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
-          echo "CONFIG_PACKAGE_curl=y" >> .config
-          echo "CONFIG_PACKAGE_jsonfilter=y" >> .config
-          echo "CONFIG_PACKAGE_yq=y" >> .config
-          echo "CONFIG_PACKAGE_chinadns-ng=y" >> .config
-          echo "CONFIG_PACKAGE_redsocks2=y" >> .config
-          echo "CONFIG_PACKAGE_tcping=y" >> .config
-          echo "CONFIG_PACKAGE_luci-lib-ipkg=y" >> .config
+
           make defconfig -j$(nproc)
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
