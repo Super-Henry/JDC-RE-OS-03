@@ -1,0 +1,49 @@
+#!/bin/sh /etc/rc.common
+START=8
+STOP=99
+
+start() {
+    # 等待 eMMC 初始化
+    sleep 3
+
+    # 格式化标记（只执行一次）
+    OVERLAY_MARKER="/overlay/.format_done"
+    SAMBA_MARKER="/tmp/samba_format_done"
+
+    # ==============================================
+    # 格式化 overlay /dev/mmcblk0p17（仅首次/升级后）
+    # ==============================================
+    if [ ! -f "$OVERLAY_MARKER" ]; then
+        echo "【自动格式化】首次启动，格式化 overlay: /dev/mmcblk0p17"
+        
+        umount /dev/mmcblk0p17 >/dev/null 2>&1
+        mkfs.ext4 -F -L overlay /dev/mmcblk0p17
+        mkdir -p /overlay
+        mount /dev/mmcblk0p17 /overlay
+        touch "$OVERLAY_MARKER"
+        
+        echo "【完成】overlay 格式化成功"
+    fi
+
+    # ==============================================
+    # 格式化 samba /dev/mmcblk0p18（仅首次/升级后）
+    # ==============================================
+    if [ ! -f "$SAMBA_MARKER" ]; then
+        echo "【自动格式化】首次启动，格式化 samba: /dev/mmcblk0p18"
+        
+        umount /dev/mmcblk0p18 >/dev/null 2>&1
+        mkfs.ext4 -F -L samba /dev/mmcblk0p18
+        mkdir -p /mnt/samba
+        mount /dev/mmcblk0p18 /mnt/samba
+        touch "$SAMBA_MARKER"
+        
+        echo "【完成】samba 格式化成功"
+    fi
+
+    # 重新挂载所有分区
+    /etc/init.d/fstab restart
+}
+
+stop() {
+    return 0
+}
