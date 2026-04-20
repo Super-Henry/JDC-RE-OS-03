@@ -88,6 +88,7 @@ jobs:
 
           mkdir -p package/openwrt-packages
           git clone https://github.com/Super-Henry/OpenOray package/openwrt-packages/OpenOray
+          mkdir -p package/feeds/luci/applications
 
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
 
