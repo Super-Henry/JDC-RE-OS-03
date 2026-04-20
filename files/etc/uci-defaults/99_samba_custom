@@ -1,0 +1,43 @@
+#!/bin/sh
+
+# 创建挂载目录
+mkdir -p /mnt/samba
+chmod 777 /mnt/samba
+
+# ==============================
+# Samba 全局配置
+# ==============================
+uci set samba.global=config
+uci set samba.global.workgroup='WORKGROUP'
+uci set samba.global.netbiosname='OpenWrt'
+uci set samba.global.charset='UTF-8'
+uci set samba.global.users='root'
+
+# ==============================
+# 共享 p18 → 名字：samba （55G大分区）
+# ==============================
+uci delete samba.share_samba
+uci set samba.share_samba=share
+uci set samba.share_samba.name='samba'
+uci set samba.share_samba.path='/mnt/samba'
+uci set samba.share_samba.read_only='no'
+uci set samba.share_samba.guest_ok='no'
+uci set samba.share_samba.create_mask='0666'
+uci set samba.share_samba.dir_mask='0777'
+uci set samba.share_samba.browseable='yes'
+
+# 保存配置
+uci commit samba
+
+# ==============================
+# 默认密码：321456
+# ==============================
+if [ ! -f /etc/samba/private/passdb.tdb ]; then
+    (echo 321456; echo 321456) | smbpasswd -s -a root
+fi
+
+# 启动服务
+/etc/init.d/samba4 enable
+/etc/init.d/samba4 restart
+
+exit 0
