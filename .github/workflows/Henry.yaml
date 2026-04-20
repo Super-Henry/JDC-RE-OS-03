@@ -80,22 +80,19 @@ jobs:
       - name: Update and install feeds
         run: |
           df -h
-          #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/feeds/luci/luci-app-passwall2
-          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/utils/passwall2
-          git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
-          git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/luci-app-passwall2
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
+          git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+          git clone https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
           git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
 
-          # 🔥 加入蒲公英 VPN (OpenOray)
           mkdir -p package/openwrt-packages
           git clone https://github.com/Super-Henry/OpenOray package/openwrt-packages/OpenOray
 
-          #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
-          #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
-          #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
-          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
       - name: Setup configuration and custom files
         run: |
@@ -105,11 +102,13 @@ jobs:
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
 
-          # 🔥 三大插件全部内置进固件 =y
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
-          echo "CONFIG_PACKAGE_orayvpn=y" >> .config        # 蒲公英
-          echo "CONFIG_PACKAGE_luci-app-orayvpn=y" >> .config # 蒲公英LUCI
+          echo "CONFIG_PACKAGE_orayvpn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-orayvpn=y" >> .config
+
+          echo "CONFIG_PACKAGE_luci-compat=y" >> .config
+          echo "CONFIG_PACKAGE_luci-base=y" >> .config
 
           echo "" >> .config
           echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
@@ -155,25 +154,28 @@ jobs:
 
           echo "" >> .config
           echo "# OpenSSL 双版本共存" >> .config
-          echo "# 蒲公英 -> libopenssl-1.1" >> .config
+          echo "# 蒲公英 -> libopenssl11" >> .config
           echo "# OpenClash/Passwall -> libopenssl (3.x)" >> .config
-          echo "CONFIG_PACKAGE_libopenssl-1.1=y" >> .config
+          echo "CONFIG_PACKAGE_libopenssl11=y" >> .config
           echo "CONFIG_PACKAGE_libopenssl=y" >> .config
-          echo "CONFIG_OPENSSL_VERSION_1_1=y" >> .config
-          echo "CONFIG_OPENSSL_VERSION_3_0=y" >> .config
-          echo "CONFIG_OPENSSL_ENGINE_CRYPTO=y" >> .config
-          echo "CONFIG_OPENSSL_ENGINE_DIGEST=y" >> .config
 
           echo "" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
 
-          # 只在这里添加挂载点必需配置
           echo "" >> .config
           echo "# WEB挂载点" >> .config
           echo "CONFIG_PACKAGE_luci-mod-system=y" >> .config
           echo "CONFIG_PACKAGE_luci-mod-system-mountpoints=y" >> .config
           echo "CONFIG_PACKAGE_block-mount=y" >> .config
+
+          # 修复蒲公英 OpenSSL 依赖
+          if [ -f package/openwrt-packages/OpenOray/orayvpn/Makefile ]; then
+            sed -i 's/+libopenssl\b/+libopenssl11/g' package/openwrt-packages/OpenOray/orayvpn/Makefile
+            echo "✅ 已修改 OpenOray 依赖为 libopenssl11"
+          else
+            echo "⚠️ 未找到 OpenOray Makefile，请检查路径"
+          fi
 
           make defconfig -j$(nproc)
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
