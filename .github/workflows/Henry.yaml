@@ -85,7 +85,7 @@ jobs:
           git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
           git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
-          git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
+          git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
 
           # 🔥 加入蒲公英 VPN (OpenOray)
           git clone https://github.com/Super-Henry/OpenOray.git package/OpenOray
