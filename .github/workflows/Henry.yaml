@@ -80,20 +80,51 @@ jobs:
       - name: Update and install feeds
         run: |
           df -h
-          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/luci-app-passwall2
-          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
-          git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
-          git clone https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+          #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/feeds/luci/luci-app-passwall2
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/utils/passwall2
+          git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
+          git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
           git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
 
-          mkdir -p package/openwrt-packages
-          git clone https://github.com/Super-Henry/OpenOray package/openwrt-packages/OpenOray
-          mkdir -p package/feeds/luci/applications
+          # 🔥 加入蒲公英 VPN (OpenOray)
+          git clone https://github.com/Super-Henry/OpenOray.git package/OpenOray
+          
+          # 检查克隆是否成功
+          if [ -d "package/OpenOray" ]; then
+            echo "✅ OpenOray 仓库克隆成功"
+          else
+            echo "❌ OpenOray 仓库克隆失败"
+            exit 1
+          fi
+          
+          # 🔥 强制蒲公英使用 OpenSSL 1.1
+          if [ -f "package/OpenOray/pgyvpn/Makefile" ]; then
+            # 替换依赖：libopenssl → libopenssl1.1，libopenssl-1.1 → libopenssl1.1
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
+            # 删除可能存在的 libopenssl3 依赖
+            sed -i '/+libopenssl3/d' package/OpenOray/pgyvpn/Makefile
+            # 注意：保留 kmod-tun，不要删除
+            echo "✅ pgyvpn Makefile 已强制使用 OpenSSL 1.1"
+          fi
 
-          unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
+          # 修复 luci-app-pgyvpn 的 Makefile
+          if [ -f "package/OpenOray/luci-app-pgyvpn/Makefile" ]; then
+            sed -i 's/+luci-lib-ipkg//g' package/OpenOray/luci-app-pgyvpn/Makefile
+            sed -i 's/+luci-lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
+            sed -i 's/+lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
+            sed -i 's/+luci-compat/+luci-base/g' package/OpenOray/luci-app-pgyvpn/Makefile
+            echo "✅ luci-app-pgyvpn Makefile 已修复"
+          fi
 
+          # 解压自定义插件到 package/ 独立目录（避免被 feeds 清理）
+          unzip builder_repo/luci-app-accesscontrol.zip -d package/luci-app-accesscontrol
+
+          # 更新 feeds
           ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          ./scripts/feeds install -a -p luci
+          ./scripts/feeds install -a -p packages
 
       - name: Setup configuration and custom files
         run: |
@@ -105,8 +136,8 @@ jobs:
 
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
-          echo "CONFIG_PACKAGE_orayvpn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-orayvpn=y" >> .config
+          echo "CONFIG_PACKAGE_pgyvpn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
 
           echo "CONFIG_PACKAGE_luci-compat=y" >> .config
           echo "CONFIG_PACKAGE_luci-base=y" >> .config
@@ -134,6 +165,10 @@ jobs:
           echo "CONFIG_PACKAGE_shadowsocksr-libev-ssr-redir=y" >> .config
 
           echo "" >> .config
+          echo "# 蒲公英依赖（使用 OpenSSL 1.1，必须内置）" >> .config
+          echo "CONFIG_PACKAGE_libopenssl1.1=y" >> .config
+
+          echo "" >> .config
           echo "# 必须集成内核模块" >> .config
           echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
           echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
@@ -154,13 +189,7 @@ jobs:
           echo "CONFIG_PACKAGE_libcap=y" >> .config
 
           echo "" >> .config
-          echo "# OpenSSL 双版本共存" >> .config
-          echo "# 蒲公英 -> libopenssl11" >> .config
-          echo "# OpenClash/Passwall -> libopenssl (3.x)" >> .config
-          echo "CONFIG_PACKAGE_libopenssl11=y" >> .config
-          echo "CONFIG_PACKAGE_libopenssl=y" >> .config
-
-          echo "" >> .config
+          echo "# DNS 配置" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
 
@@ -170,13 +199,6 @@ jobs:
           echo "CONFIG_PACKAGE_luci-mod-system-mountpoints=y" >> .config
           echo "CONFIG_PACKAGE_block-mount=y" >> .config
 
-          # 修复蒲公英 OpenSSL 依赖
-          if [ -f package/openwrt-packages/OpenOray/orayvpn/Makefile ]; then
-            sed -i 's/+libopenssl\b/+libopenssl11/g' package/openwrt-packages/OpenOray/orayvpn/Makefile
-            echo "✅ 已修改 OpenOray 依赖为 libopenssl11"
-          else
-            echo "⚠️ 未找到 OpenOray Makefile，请检查路径"
-          fi
 
           make defconfig -j$(nproc)
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
