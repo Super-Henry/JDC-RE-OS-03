@@ -87,7 +87,7 @@ jobs:
           git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
           git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
 
-          # 🔥 加入蒲公英 VPN (OpenOray)
+          # 🔥 加入蒲公英 VPN (OpenOray) - 包含蒲公英、花生壳、向日葵
           git clone https://github.com/Super-Henry/OpenOray.git package/OpenOray
           
           # 检查克隆是否成功
@@ -98,14 +98,11 @@ jobs:
             exit 1
           fi
           
-          # 🔥 强制蒲公英使用 OpenSSL 1.1
+          # === 处理蒲公英 (pgyvpn) ===
           if [ -f "package/OpenOray/pgyvpn/Makefile" ]; then
-            # 替换依赖：libopenssl → libopenssl1.1，libopenssl-1.1 → libopenssl1.1
             sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
             sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
-            # 删除可能存在的 libopenssl3 依赖
             sed -i '/+libopenssl3/d' package/OpenOray/pgyvpn/Makefile
-            # 注意：保留 kmod-tun，不要删除
             echo "✅ pgyvpn Makefile 已强制使用 OpenSSL 1.1"
           fi
 
@@ -115,37 +112,27 @@ jobs:
             sed -i 's/+luci-lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
             sed -i 's/+lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
             sed -i 's/+luci-compat/+luci-base/g' package/OpenOray/luci-app-pgyvpn/Makefile
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
             echo "✅ luci-app-pgyvpn Makefile 已修复"
           fi
 
-          # 🔥 加入花生壳 (phtunnel)
-          git clone https://github.com/Super-Henry/phtunnel.git package/phtunnel
-          git clone https://github.com/Super-Henry/luci-app-phtunnel.git package/luci-app-phtunnel
-          
-          # 检查克隆是否成功
-          if [ -d "package/phtunnel" ] && [ -d "package/luci-app-phtunnel" ]; then
-            echo "✅ 花生壳仓库克隆成功"
-          else
-            echo "⚠️ 花生壳仓库克隆失败，请检查网络或仓库地址"
-          fi
-          
-          # 🔥 强制花生壳使用 OpenSSL 1.1
-          if [ -f "package/phtunnel/Makefile" ]; then
-            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/phtunnel/Makefile
-            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/phtunnel/Makefile
-            sed -i '/+libopenssl3/d' package/phtunnel/Makefile
+          # === 处理花生壳 (phtunnel) ===
+          if [ -f "package/OpenOray/phtunnel/Makefile" ]; then
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/phtunnel/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/phtunnel/Makefile
+            sed -i '/+libopenssl3/d' package/OpenOray/phtunnel/Makefile
             echo "✅ phtunnel Makefile 已强制使用 OpenSSL 1.1"
           fi
-          
-          # 修复 luci-app-phtunnel 的 Makefile（移除过时依赖）
-          if [ -f "package/luci-app-phtunnel/Makefile" ]; then
-            sed -i 's/+luci-lib-ipkg//g' package/luci-app-phtunnel/Makefile
-            sed -i 's/+luci-lua//g' package/luci-app-phtunnel/Makefile
-            sed -i 's/+lua//g' package/luci-app-phtunnel/Makefile
-            sed -i 's/+luci-compat/+luci-base/g' package/luci-app-phtunnel/Makefile
-            # 同样强制 OpenSSL 1.1
-            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
-            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
+
+          # 修复 luci-app-phtunnel 的 Makefile
+          if [ -f "package/OpenOray/luci-app-phtunnel/Makefile" ]; then
+            sed -i 's/+luci-lib-ipkg//g' package/OpenOray/luci-app-phtunnel/Makefile
+            sed -i 's/+luci-lua//g' package/OpenOray/luci-app-phtunnel/Makefile
+            sed -i 's/+lua//g' package/OpenOray/luci-app-phtunnel/Makefile
+            sed -i 's/+luci-compat/+luci-base/g' package/OpenOray/luci-app-phtunnel/Makefile
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/luci-app-phtunnel/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/luci-app-phtunnel/Makefile
             echo "✅ luci-app-phtunnel Makefile 已修复"
           fi
 
@@ -161,6 +148,19 @@ jobs:
         run: |
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
+          
+          # 关键：强制扫描所有本地包
+          make package/symlinks
+          
+          # 先运行 defconfig 生成基础配置
+          make defconfig -j$(nproc)
+          
+          # 强制加入 libopenssl1.1 的配置（确保包被识别）
+          echo "CONFIG_PACKAGE_libopenssl1.1=y" >> .config
+          # 运行 oldconfig 接受新选项
+          make oldconfig
+          
+          # 然后添加其他插件配置（保留原有全部 echo 命令）
           echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
@@ -200,7 +200,8 @@ jobs:
 
           echo "" >> .config
           echo "# 蒲公英依赖（使用 OpenSSL 1.1，必须内置）" >> .config
-          echo "CONFIG_PACKAGE_libopenssl1.1=y" >> .config
+          # 已经在上方强制加入，这里保留注释即可
+          # echo "CONFIG_PACKAGE_libopenssl1.1=y" >> .config
 
           echo "" >> .config
           echo "# 必须集成内核模块" >> .config
@@ -234,8 +235,9 @@ jobs:
           echo "CONFIG_PACKAGE_luci-mod-system-mountpoints=y" >> .config
           echo "CONFIG_PACKAGE_block-mount=y" >> .config
 
-
+          # 最后再运行一次 defconfig 确保依赖正确
           make defconfig -j$(nproc)
+          
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && cp -r builder_repo/${{ env.CUSTOM_FILES_PATH }}. ${{ env.CUSTOM_FILES_PATH }} || true
 
