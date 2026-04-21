@@ -112,8 +112,8 @@ jobs:
             sed -i 's/+luci-lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
             sed -i 's/+lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
             sed -i 's/+luci-compat/+luci-base/g' package/OpenOray/luci-app-pgyvpn/Makefile
-            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
-            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/luci-app-pgyvpn/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/luci-app-pgyvpn/Makefile
             echo "✅ luci-app-pgyvpn Makefile 已修复"
           fi
 
