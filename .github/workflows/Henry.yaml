@@ -118,6 +118,37 @@ jobs:
             echo "✅ luci-app-pgyvpn Makefile 已修复"
           fi
 
+          # 🔥 加入花生壳 (phtunnel)
+          git clone https://github.com/Super-Henry/phtunnel.git package/phtunnel
+          git clone https://github.com/Super-Henry/luci-app-phtunnel.git package/luci-app-phtunnel
+          
+          # 检查克隆是否成功
+          if [ -d "package/phtunnel" ] && [ -d "package/luci-app-phtunnel" ]; then
+            echo "✅ 花生壳仓库克隆成功"
+          else
+            echo "⚠️ 花生壳仓库克隆失败，请检查网络或仓库地址"
+          fi
+          
+          # 🔥 强制花生壳使用 OpenSSL 1.1
+          if [ -f "package/phtunnel/Makefile" ]; then
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/phtunnel/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/phtunnel/Makefile
+            sed -i '/+libopenssl3/d' package/phtunnel/Makefile
+            echo "✅ phtunnel Makefile 已强制使用 OpenSSL 1.1"
+          fi
+          
+          # 修复 luci-app-phtunnel 的 Makefile（移除过时依赖）
+          if [ -f "package/luci-app-phtunnel/Makefile" ]; then
+            sed -i 's/+luci-lib-ipkg//g' package/luci-app-phtunnel/Makefile
+            sed -i 's/+luci-lua//g' package/luci-app-phtunnel/Makefile
+            sed -i 's/+lua//g' package/luci-app-phtunnel/Makefile
+            sed -i 's/+luci-compat/+luci-base/g' package/luci-app-phtunnel/Makefile
+            # 同样强制 OpenSSL 1.1
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/luci-app-phtunnel/Makefile
+            echo "✅ luci-app-phtunnel Makefile 已修复"
+          fi
+
           # 解压自定义插件到 package/ 独立目录（避免被 feeds 清理）
           unzip builder_repo/luci-app-accesscontrol.zip -d package/luci-app-accesscontrol
 
@@ -138,6 +169,9 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
           echo "CONFIG_PACKAGE_pgyvpn=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
+          # 花生壳
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
 
           echo "CONFIG_PACKAGE_luci-compat=y" >> .config
           echo "CONFIG_PACKAGE_luci-base=y" >> .config
@@ -187,6 +221,7 @@ jobs:
           echo "# 辅助组件" >> .config
           echo "CONFIG_PACKAGE_ipset=y" >> .config
           echo "CONFIG_PACKAGE_libcap=y" >> .config
+          echo "CONFIG_PACKAGE_libstdcpp=y" >> .config   # 花生壳可能需要
 
           echo "" >> .config
           echo "# DNS 配置" >> .config
