@@ -269,13 +269,35 @@ jobs:
             gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
           done
 
-      - name: Clean broken downloads (CRITICAL)
+      # ========== 关键修改：强制下载并校验 OpenSSL 1.1 源码 ==========
+      - name: Clean broken downloads and force OpenSSL 1.1 source
         run: |
-          echo "🧹 Cleaning broken OpenSSL downloads..."
+          echo "🧹 Cleaning broken OpenSSL downloads and build dirs..."
           rm -f dl/openssl-1.1.1*
           rm -f dl/libopenssl1.1*
+          rm -rf build_dir/target-*/openssl1.1-*
           rm -rf tmp/*
-          echo "✅ Clean done"
+          
+          echo "📥 Downloading OpenSSL 1.1.1w source..."
+          mkdir -p dl
+          cd dl
+          # 尝试多个备用 URL
+          wget --tries=5 --timeout=30 --no-verbose \
+            https://openssl-library.org/source/old/1.1.1/openssl-1.1.1w.tar.gz || \
+          wget --tries=5 --timeout=30 --no-verbose \
+            https://www.openssl.org/source/openssl-1.1.1w.tar.gz || \
+          wget --tries=5 --timeout=30 --no-verbose \
+            https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz
+          
+          echo "🔍 Verifying SHA256 hash..."
+          echo "cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8  openssl-1.1.1w.tar.gz" | sha256sum -c -
+          if [ $? -ne 0 ]; then
+            echo "❌ OpenSSL 1.1 source hash mismatch!"
+            exit 1
+          fi
+          echo "✅ OpenSSL 1.1 source ready"
+          cd ..
+      # ========== 修改结束 ==========
 
       - name: Download packages
         run: |
