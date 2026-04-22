@@ -144,6 +144,24 @@ jobs:
           ./scripts/feeds install -a -p luci
           ./scripts/feeds install -a -p packages
 
+      # ========== 新增：修复 OpenSSL 1.1 Makefile（添加 PKG_SOURCE_SUBDIR） ==========
+      - name: Fix OpenSSL 1.1 Makefile
+        run: |
+          MAKEFILE_PATH="package/libs/openssl1.1/Makefile"
+          if [ -f "$MAKEFILE_PATH" ]; then
+            if ! grep -q "PKG_SOURCE_SUBDIR" "$MAKEFILE_PATH"; then
+              echo "🔧 Adding PKG_SOURCE_SUBDIR to Makefile..."
+              sed -i '/PKG_HASH=/a PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)' "$MAKEFILE_PATH"
+              echo "✅ Makefile fixed"
+            else
+              echo "✅ PKG_SOURCE_SUBDIR already present"
+            fi
+          else
+            echo "❌ Makefile not found at $MAKEFILE_PATH"
+            exit 1
+          fi
+      # ========== 修复结束 ==========
+
       - name: Setup configuration and custom files
         run: |
           df -hT
@@ -269,7 +287,7 @@ jobs:
             gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
           done
 
-      # ========== 关键修改：强制下载并校验 OpenSSL 1.1 源码 ==========
+      # ========== 强制下载并校验 OpenSSL 1.1 源码 ==========
       - name: Clean broken downloads and force OpenSSL 1.1 source
         run: |
           echo "🧹 Cleaning broken OpenSSL downloads and build dirs..."
@@ -281,13 +299,10 @@ jobs:
           echo "📥 Downloading OpenSSL 1.1.1w source..."
           mkdir -p dl
           cd dl
-          # 尝试多个备用 URL
           wget --tries=5 --timeout=30 --no-verbose \
             https://openssl-library.org/source/old/1.1.1/openssl-1.1.1w.tar.gz || \
           wget --tries=5 --timeout=30 --no-verbose \
-            https://www.openssl.org/source/openssl-1.1.1w.tar.gz || \
-          wget --tries=5 --timeout=30 --no-verbose \
-            https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz
+            https://www.openssl.org/source/openssl-1.1.1w.tar.gz
           
           echo "🔍 Verifying SHA256 hash..."
           echo "cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8  openssl-1.1.1w.tar.gz" | sha256sum -c -
