@@ -269,11 +269,19 @@ jobs:
             gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
           done
 
+      - name: Clean broken downloads (CRITICAL)
+        run: |
+          echo "🧹 Cleaning broken OpenSSL downloads..."
+          rm -f dl/openssl-1.1.1*
+          rm -f dl/libopenssl1.1*
+          rm -rf tmp/*
+          echo "✅ Clean done"
+
       - name: Download packages
         run: |
           df -hT
           ./scripts/feeds update -a
-          make download -j$(nproc)
+          make download -j$(nproc) V=s
           
       - name: Build firmware
         env: 
