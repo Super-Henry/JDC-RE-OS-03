@@ -145,28 +145,24 @@ jobs:
           ./scripts/feeds install -a -p luci
           ./scripts/feeds install -a -p packages
 
-      # ========== 修复 OpenSSL 1.1 Makefile（注释掉有问题的 PKG_SOURCE_SUBDIR） ==========
-      - name: Fix OpenSSL 1.1 Makefile
+      # ========== 验证 OpenSSL 1.1 Makefile ==========
+      - name: Verify OpenSSL 1.1 Makefile
         run: |
           MAKEFILE_PATH="package/libs/openssl1.1/Makefile"
           if [ -f "$MAKEFILE_PATH" ]; then
-            echo "🔧 Fixing OpenSSL 1.1 Makefile..."
-            
-            # 注释掉有问题的 PKG_SOURCE_SUBDIR 行（让系统使用默认目录名）
-            if grep -q "^PKG_SOURCE_SUBDIR:" "$MAKEFILE_PATH"; then
-              sed -i 's/^PKG_SOURCE_SUBDIR:=/# PKG_SOURCE_SUBDIR:=/' "$MAKEFILE_PATH"
-              echo "✅ Commented out PKG_SOURCE_SUBDIR (using default openssl-1.1.1w)"
+            echo "=== OpenSSL 1.1 Makefile settings ==="
+            grep -E "PKG_NAME|PKG_VERSION|PKG_SOURCE[^_]|PKG_SOURCE_SUBDIR|OPENSSL_SRC_DIR" "$MAKEFILE_PATH" || true
+            echo ""
+            echo "=== Checking for nested directory handling ==="
+            if grep -q "openssl-\$(PKG_VERSION)/openssl-\$(PKG_VERSION)" "$MAKEFILE_PATH"; then
+              echo "✅ Makefile has nested directory support"
             else
-              echo "✅ PKG_SOURCE_SUBDIR not found or already commented"
+              echo "⚠️ Makefile may not have nested directory support"
             fi
-            
-            echo "=== Current Makefile settings ==="
-            grep -E "PKG_NAME|PKG_VERSION|PKG_SOURCE[^_]|PKG_SOURCE_SUBDIR" "$MAKEFILE_PATH" || true
           else
             echo "❌ Makefile not found at $MAKEFILE_PATH"
             exit 1
           fi
-      # ========== 修复结束 ==========
 
       - name: Setup configuration and custom files
         run: |
@@ -184,7 +180,7 @@ jobs:
           # 运行 oldconfig 接受新选项
           make oldconfig
           
-          # 然后添加其他插件配置（保留原有全部 echo 命令）
+          # 然后添加其他插件配置
           echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
@@ -288,31 +284,13 @@ jobs:
             gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
           done
 
-      # ========== 清理并下载 OpenSSL 1.1 源码 ==========
-      - name: Prepare OpenSSL 1.1 source
+      # ========== 清理 OpenSSL 1.1 构建目录 ==========
+      - name: Clean OpenSSL 1.1 build dirs
         run: |
-          echo "🧹 Cleaning any broken OpenSSL downloads and build dirs..."
-          rm -f dl/openssl-1.1.1*
+          echo "🧹 Cleaning OpenSSL 1.1 build directories..."
           rm -rf build_dir/target-*/openssl*
-          rm -rf tmp/*
-          
-          echo "📥 Downloading OpenSSL 1.1.1w source..."
-          mkdir -p dl
-          cd dl
-          wget --tries=5 --timeout=30 --no-verbose \
-            https://openssl-library.org/source/old/1.1.1/openssl-1.1.1w.tar.gz || \
-          wget --tries=5 --timeout=30 --no-verbose \
-            https://www.openssl.org/source/openssl-1.1.1w.tar.gz
-          
-          echo "🔍 Verifying SHA256 hash..."
-          echo "cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8  openssl-1.1.1w.tar.gz" | sha256sum -c -
-          if [ $? -ne 0 ]; then
-            echo "❌ OpenSSL 1.1 source hash mismatch!"
-            exit 1
-          fi
-          echo "✅ OpenSSL 1.1 source ready"
-          cd ..
-      # ========== 结束 ==========
+          rm -rf build_dir/host/openssl*
+          echo "✅ OpenSSL 1.1 build dirs cleaned"
 
       - name: Download packages
         run: |
