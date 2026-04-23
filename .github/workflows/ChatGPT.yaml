@@ -41,11 +41,12 @@ jobs:
           find package/OpenOray -name Makefile | xargs sed -i 's/+libopenssl.*/+libopenssl1.1/g'
           find package/OpenOray -name Makefile | xargs sed -i '/openssl3/d'
 
+      # ✅ 修复 OpenClash 核心下载（解决 404）
       - name: Embed OpenClash Core
         run: |
           mkdir -p files/etc/openclash/core
           wget -O files/etc/openclash/core/mihomo \
-          https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-arm64
+          https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-arm64-v8
           chmod +x files/etc/openclash/core/mihomo
 
       - name: Enable OpenClash
@@ -110,8 +111,17 @@ jobs:
           rm -rf build_dir/target-*/openssl*
           rm -rf build_dir/host/openssl*
 
+      # ✅ 防止 /usr/include 污染（否则你后面还会炸）
       - name: Download
-        run: make download -j$(nproc)
+        run: |
+          unset CPATH
+          unset C_INCLUDE_PATH
+          unset CPLUS_INCLUDE_PATH
+
+          export CFLAGS="-I$(pwd)/staging_dir/target-aarch64_cortex-a53_musl/usr/include"
+          export CPPFLAGS="$CFLAGS"
+
+          make download -j$(nproc)
 
       - name: Build
         run: |
