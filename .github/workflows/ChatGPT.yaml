@@ -1,0 +1,162 @@
+name: ChatGPT OpenWrt
+on:
+  workflow_dispatch:
+
+env:
+  REPO: Super-Henry/openwrt
+  BRANCH: development-version
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+    # ===== 依赖 =====
+    - name: Install deps
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential clang flex bison g++ gawk \
+        gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
+        python3-setuptools rsync swig unzip zlib1g-dev file wget
+
+    # ===== 源码 =====
+    - name: Clone OpenWrt
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.REPO }}
+        ref: ${{ env.BRANCH }}
+
+    # ===== NSS =====
+    - name: Add NSS Packages
+      run: |
+        git clone https://github.com/Super-Henry/NSS-PACKAGES.git package/nss
+
+    # ===== 插件 =====
+    - name: Clone plugins
+      run: |
+        git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+        git clone https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+        git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
+        git clone https://github.com/Super-Henry/OpenOray.git package/OpenOray
+
+    # ===== OpenSSL 修复 =====
+    - name: Fix OpenSSL
+      run: |
+        find package/OpenOray -name Makefile | while read f; do
+          sed -i 's/+libopenssl.*/+libopenssl1.1/g' $f
+          sed -i '/openssl3/d' $f
+        done
+
+        find package/OpenOray/luci-* -name Makefile | while read f; do
+          sed -i 's/+luci-lib-ipkg//g' $f
+          sed -i 's/+luci-lua//g' $f
+          sed -i 's/+lua//g' $f
+          sed -i 's/+luci-compat/+luci-base/g' $f
+        done
+
+    # ===== 🔥 内置 OpenClash 核心 =====
+    - name: Embed OpenClash Core
+      run: |
+        mkdir -p files/etc/openclash/core
+
+        # mihomo 核心（ARM64）
+        wget -O files/etc/openclash/core/mihomo \
+        https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-arm64
+
+        chmod +x files/etc/openclash/core/mihomo
+
+    # ===== 🔥 开机自动启动 OpenClash =====
+    - name: Enable OpenClash on boot
+      run: |
+        mkdir -p files/etc/uci-defaults
+        cat > files/etc/uci-defaults/99-openclash <<EOF
+#!/bin/sh
+uci set openclash.config.enable='1'
+uci commit openclash
+/etc/init.d/openclash enable
+EOF
+        chmod +x files/etc/uci-defaults/99-openclash
+
+    # ===== feeds =====
+    - name: Update feeds
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    # ===== 配置 =====
+    - name: Configure
+      run: |
+        make defconfig
+
+        cat >> .config <<EOF
+# ===== NSS =====
+CONFIG_PACKAGE_kmod-qca-nss-drv=y
+CONFIG_PACKAGE_kmod-qca-nss-ecm=y
+CONFIG_PACKAGE_qca-nss-fw=y
+
+# ===== 加速 =====
+CONFIG_PACKAGE_kmod-shortcut-fe=y
+CONFIG_PACKAGE_kmod-fast-classifier=y
+
+# ===== OpenSSL =====
+CONFIG_PACKAGE_libopenssl1.1=y
+CONFIG_PACKAGE_openssl=y
+
+# ===== LuCI =====
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-theme-argon=y
+CONFIG_PACKAGE_luci-app-argon-config=y
+
+# ===== OpenClash =====
+CONFIG_PACKAGE_luci-app-openclash=y
+
+# ===== OpenOray =====
+CONFIG_PACKAGE_pgyvpn=y
+CONFIG_PACKAGE_luci-app-pgyvpn=y
+CONFIG_PACKAGE_phtunnel=y
+CONFIG_PACKAGE_luci-app-phtunnel=y
+
+# ===== 内核 =====
+CONFIG_PACKAGE_kmod-tun=y
+CONFIG_PACKAGE_kmod-nf-tproxy=y
+
+# ===== DNS =====
+CONFIG_PACKAGE_dnsmasq-full=y
+CONFIG_PACKAGE_dnsmasq=n
+
+# ===== 工具 =====
+CONFIG_PACKAGE_curl=y
+CONFIG_PACKAGE_ca-bundle=y
+CONFIG_PACKAGE_ipset=y
+EOF
+
+        make defconfig
+
+    # ===== 扩容 =====
+    - name: Expand disk
+      run: |
+        sudo mkdir -p /mnt/upper /mnt/work
+        sudo mount -t overlay overlay \
+        -o lowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work $(pwd)
+
+    # ===== 清理 =====
+    - name: Clean OpenSSL
+      run: |
+        rm -rf build_dir/target-*/openssl*
+        rm -rf build_dir/host/openssl*
+
+    # ===== 下载 =====
+    - name: Download
+      run: make download -j$(nproc)
+
+    # ===== 编译 =====
+    - name: Build
+      run: |
+        make -j$(nproc) || make -j1 V=s
+
+    # ===== 输出 =====
+    - name: Upload firmware
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-max-nss-ultimate-final
+        path: bin/targets/
