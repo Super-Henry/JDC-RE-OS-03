@@ -1,4 +1,4 @@
-name: OpenWrt MAX NSS Ultimate FINAL
+name: ChatGPT OpenWrt
 
 on:
   workflow_dispatch:
