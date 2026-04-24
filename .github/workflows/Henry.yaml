@@ -145,31 +145,6 @@ jobs:
           ./scripts/feeds install -a -p luci
           ./scripts/feeds install -a -p packages
 
-      # ========== 🆕 新增步骤：彻底阻止 pgyvpn 自行编译 OpenSSL ==========
-      - name: Patch pgyvpn to use system libopenssl1.1
-        run: |
-          echo "🔧 Patching pgyvpn Makefile to avoid self-compiling OpenSSL..."
-          PGY_MAKEFILE="package/OpenOray/pgyvpn/Makefile"
-          if [ -f "$PGY_MAKEFILE" ]; then
-            # 备份原文件
-            cp "$PGY_MAKEFILE" "$PGY_MAKEFILE.bak"
-            
-            # 删除任何包含 openssl-1.1.1w 或调用 make 编译 openssl 的行
-            sed -i '/openssl-1\.1\.1w/d' "$PGY_MAKEFILE"
-            sed -i '/\$(MAKE).*openssl/d' "$PGY_MAKEFILE"
-            sed -i '/\.\/Configure.*openssl/d' "$PGY_MAKEFILE"
-            
-            # 确保链接到 staging 目录的 libopenssl
-            if ! grep -q "TARGET_LDFLAGS += -L\$(STAGING_DIR)/usr/lib -lssl -lcrypto" "$PGY_MAKEFILE"; then
-              sed -i '/define Build\/Compile/a\\tTARGET_CFLAGS += -I$(STAGING_DIR)/usr/include/openssl1.1' "$PGY_MAKEFILE"
-              sed -i '/define Build\/Compile/a\\tTARGET_LDFLAGS += -L$(STAGING_DIR)/usr/lib -lssl -lcrypto' "$PGY_MAKEFILE"
-            fi
-            
-            echo "✅ Patched successfully."
-          else
-            echo "⚠️ $PGY_MAKEFILE not found, skipping."
-          fi
-
       # ========== 验证 OpenSSL 1.1 Makefile ==========
       - name: Verify OpenSSL 1.1 Makefile
         run: |
