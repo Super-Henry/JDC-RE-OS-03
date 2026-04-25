@@ -274,6 +274,13 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-qca-nss-ecm=y" >> .config
           echo "CONFIG_PACKAGE_qca-nss-ecm=y" >> .config
 
+          # ====================== 关键修复：禁用报错的 qca-mcs ======================
+          echo "" >> .config
+          echo "# 修复编译错误：禁用不兼容内核的 qca-mcs 模块" >> .config
+          echo "CONFIG_PACKAGE_kmod-qca-mcs=n" >> .config
+          echo "CONFIG_PACKAGE_qca-mcs=n" >> .config
+          # ========================================================================
+
           # 最终整理
           make defconfig -j$(nproc)
 
