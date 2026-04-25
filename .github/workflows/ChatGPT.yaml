@@ -42,10 +42,10 @@ jobs:
           new_commits=$([[ "$release_body" == *"$latest_sha"* ]] && echo "false" || echo "true")
           nss_new_commits=$([[ "$release_body" == *"$packages_sha"* ]] && echo "false" || echo "true")
 
-          echo "new_commits=$new_commits" >> $GITHUB_OUTPUT
-          echo "latest_commit_sha=$latest_sha" >> $GITHUB_OUTPUT
-          echo "nss_packages_repo_new_commits=$nss_new_commits" >> $GITHUB_OUTPUT
-          echo "nss_packages_repo_latest_commit_sha=$packages_sha" >> $GITHUB_OUTPUT
+          echo "new_commits=$new_commits" >> "$GITHUB_OUTPUT"
+          echo "latest_commit_sha=$latest_sha" >> "$GITHUB_OUTPUT"
+          echo "nss_packages_repo_new_commits=$nss_new_commits" >> "$GITHUB_OUTPUT"
+          echo "nss_packages_repo_latest_commit_sha=$packages_sha" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build OpenWrt
@@ -54,11 +54,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential clang flex bison g++ gawk \
-            gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
-            python3-setuptools rsorting swig unzip zlib1g-dev file wget
+        run: sudo apt update && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget
 
       - name: Checkout remote repository
         uses: actions/checkout@v4
@@ -69,8 +65,8 @@ jobs:
       - name: Checkout current repository
         uses: actions/checkout@v4
         with:
-          path: builder_repo
-
+          path: "builder_repo"
+          
       - name: Add custom patches
         run: |
           df -hT
@@ -85,16 +81,12 @@ jobs:
       - name: Update and install feeds
         run: |
           df -h
-          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git \
-            package/feeds/luci/luci-app-passwall2
-          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git \
-            package/utils/passwall2
-          git clone https://github.com/jerrykuku/luci-theme-argon.git \
-            package/feeds/luci/luci-theme-argon
-          git clone https://github.com/jerrykuku/luci-app-argon-config.git \
-            package/feeds/luci/luci-app-argon-config
-          git clone https://github.com/Super-Henry/OpenClash.git \
-            package/luci-app-openclash
+          #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall2.git package/feeds/luci/luci-app-passwall2
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/utils/passwall2
+          git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
+          git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
+          git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
 
           # ----- NSS 加速包 -----
           git clone https://github.com/${{ env.NSS_PACKAGES_REPOSITORY }}.git \
@@ -109,28 +101,24 @@ jobs:
 
           # ----- 蒲公英 VPN (OpenOray) -----
           git clone https://github.com/Super-Henry/OpenOray.git package/OpenOray
-
+          
+          # 检查克隆是否成功
           if [ -d "package/OpenOray" ]; then
             echo "✅ OpenOray 仓库克隆成功"
           else
             echo "❌ OpenOray 仓库克隆失败"
             exit 1
           fi
-
-          # --- 处理蒲公英 (pgyvpn) ---
+          
+          # === 处理蒲公英 (pgyvpn) ===
           if [ -f "package/OpenOray/pgyvpn/Makefile" ]; then
             sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
             sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
             sed -i '/+libopenssl3/d' package/OpenOray/pgyvpn/Makefile
-            
-            # 🔥 修复 NSS 导致的 pgyvpn Makefile 语法报错
-            sed -i '/^TARGET_LDFLAGS/d' package/OpenOray/pgyvpn/Makefile
-            echo "EXTRA_LDFLAGS += -lssl -lcrypto" >> package/OpenOray/pgyvpn/Makefile
-            
-            echo "✅ pgyvpn Makefile 已修复并适配 OpenSSL 1.1"
+            echo "✅ pgyvpn Makefile 已强制使用 OpenSSL 1.1"
           fi
 
-          # 修复 luci-app-pgyvpn Makefile
+          # 修复 luci-app-pgyvpn 的 Makefile
           if [ -f "package/OpenOray/luci-app-pgyvpn/Makefile" ]; then
             sed -i 's/+luci-lib-ipkg//g' package/OpenOray/luci-app-pgyvpn/Makefile
             sed -i 's/+luci-lua//g' package/OpenOray/luci-app-pgyvpn/Makefile
@@ -141,7 +129,7 @@ jobs:
             echo "✅ luci-app-pgyvpn Makefile 已修复"
           fi
 
-          # --- 处理花生壳 (phtunnel) ---
+          # === 处理花生壳 (phtunnel) ===
           if [ -f "package/OpenOray/phtunnel/Makefile" ]; then
             sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/phtunnel/Makefile
             sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/phtunnel/Makefile
@@ -149,7 +137,7 @@ jobs:
             echo "✅ phtunnel Makefile 已强制使用 OpenSSL 1.1"
           fi
 
-          # 修复 luci-app-phtunnel Makefile
+          # 修复 luci-app-phtunnel 的 Makefile
           if [ -f "package/OpenOray/luci-app-phtunnel/Makefile" ]; then
             sed -i 's/+luci-lib-ipkg//g' package/OpenOray/luci-app-phtunnel/Makefile
             sed -i 's/+luci-lua//g' package/OpenOray/luci-app-phtunnel/Makefile
@@ -160,7 +148,7 @@ jobs:
             echo "✅ luci-app-phtunnel Makefile 已修复"
           fi
 
-          # 解压自定义插件
+          # 解压自定义插件到 package/ 独立目录（避免被 feeds 清理）
           unzip builder_repo/luci-app-accesscontrol.zip -d package/luci-app-accesscontrol
 
           # 更新 feeds
@@ -191,31 +179,36 @@ jobs:
         run: |
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
-
-          # 扫描本地包
+          
+          # 关键：强制扫描所有本地包
           make package/symlinks
+          
+          # 先运行 defconfig 生成基础配置
           make defconfig -j$(nproc)
-
-          # 强制 libopenssl1.1
+          
+          # 强制加入 libopenssl1.1 的配置（确保包被识别）
           echo "CONFIG_PACKAGE_libopenssl1.1=y" >> .config
+          # 运行 oldconfig 接受新选项
           make oldconfig
-
-          # ---- 基础插件 ----
+          
+          # 然后添加其他插件配置
           echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
+
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
           echo "CONFIG_PACKAGE_pgyvpn=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
+          # 花生壳
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+
           echo "CONFIG_PACKAGE_luci-compat=y" >> .config
           echo "CONFIG_PACKAGE_luci-base=y" >> .config
 
-          # ---- OpenClash 依赖 ----
           echo "" >> .config
-          echo "# OpenClash 依赖" >> .config
+          echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
           echo "CONFIG_PACKAGE_openssl=y" >> .config
           echo "CONFIG_PACKAGE_coreutils=y" >> .config
           echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
@@ -223,9 +216,8 @@ jobs:
           echo "CONFIG_PACKAGE_jsonfilter=y" >> .config
           echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
 
-          # ---- PassWall2 组件 ----
           echo "" >> .config
-          echo "# PassWall2 组件" >> .config
+          echo "# PassWall2 全部组件（OpenSSL 3.0）" >> .config
           echo "CONFIG_PACKAGE_passwall2=y" >> .config
           echo "CONFIG_PACKAGE_xray-core=y" >> .config
           echo "CONFIG_PACKAGE_xray-plugin=y" >> .config
@@ -233,13 +225,12 @@ jobs:
           echo "CONFIG_PACKAGE_hysteria=y" >> .config
           echo "CONFIG_PACKAGE_naiveproxy=y" >> .config
           echo "CONFIG_PACKAGE_tuic-client=y" >> .config
-          echo "CONFIG_PACKAGE_shadowsocks-libev-ss-red=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocks-libev-ss-redir=y" >> .config
           echo "CONFIG_PACKAGE_shadowsocks-libev-ss-tunnel=y" >> .config
           echo "CONFIG_PACKAGE_shadowsocksr-libev-ssr-redir=y" >> .config
 
-          # ---- 内核模块 ----
           echo "" >> .config
-          echo "# 内核模块" >> .config
+          echo "# 必须集成内核模块" >> .config
           echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
           echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
           echo "CONFIG_PACKAGE_kmod-nf-tproxy=y" >> .config
@@ -259,7 +250,7 @@ jobs:
           echo "# 辅助组件" >> .config
           echo "CONFIG_PACKAGE_ipset=y" >> .config
           echo "CONFIG_PACKAGE_libcap=y" >> .config
-          echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+          echo "CONFIG_PACKAGE_libstdcpp=y" >> .config   # 花生壳可能需要
 
           # ---- DNS 双引擎 ----
           echo "" >> .config
@@ -288,16 +279,13 @@ jobs:
 
           # 自定义文件
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
-          [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && \
-            cp -r builder_repo/${{ env.CUSTOM_FILES_PATH }}. ${{ env.CUSTOM_FILES_PATH }} || true
+          [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && cp -r builder_repo/${{ env.CUSTOM_FILES_PATH }}. ${{ env.CUSTOM_FILES_PATH }} || true
 
       - name: Use /mnt for more disk space
         if: always()
         run: |
-          sudo mkdir -p /mnt/upper /mnt/work
-          sudo chmod a+w /mnt/upper
-          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
-          df -hT
+          sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
+          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
@@ -316,12 +304,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/${{ github.repository }}/actions/caches --paginate \
-            --jq '.actions_caches[0:] | .[] | .key' | while read key; do
+          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
             echo "Removing old cache $key ..."
             gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
           done
 
+      # ========== 清理 OpenSSL 1.1 构建目录 ==========
       - name: Clean OpenSSL 1.1 build dirs
         run: |
           echo "🧹 Cleaning OpenSSL 1.1 build directories..."
@@ -341,9 +329,8 @@ jobs:
         run: |
           df -hT
           make check -j$(nproc) FIXUP=1 V=s
-          make -j$(nproc) || make -j1 V=s
-          tar cvzf bin/targets/qualcommax/ipq50xx/snapshots.tar.gz \
-            -C bin packages/aarch64_cortex-a53 targets/qualcommax/ipq50xx/packages
+          make -j$(nproc) || make -j1 V=s  # Retry single-threaded on failure
+          tar cvzf bin/targets/qualcommax/ipq50xx/snapshots.tar.gz -C bin packages/aarch64_cortex-a53 targets/qualcommax/ipq50xx/packages
 
       - name: Verify packages in firmware
         run: |
@@ -377,7 +364,7 @@ jobs:
       - name: Check disk space usage
         if: always()
         run: df -hT
-
+        
   release:
     name: Create release
     needs: [check_commits, build]
@@ -389,12 +376,10 @@ jobs:
         with:
           name: ipq50xx-images
           path: firmware
-
       - name: Set release date
         run: echo "RELEASE_DATE=$(date +%F)" >> $GITHUB_ENV
-
       - name: Publish release
-        uses: softprops/action@master
+        uses: softprops/action-gh-release@master
         with:
           files: firmware/*
           tag_name: ${{ env.RELEASE_PREFIX }}-${{ env.RELEASE_DATE }}
@@ -431,12 +416,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           df -hT
-          gh api repos/${{ github.repository }}/releases --paginate \
-            --jq '.[5:10] | .[] | "\(.id) \(.tag_name)"' | while read id tag; do
-            day=$(echo "$tag" | cut -d'-' -f4)
+          gh api repos/${{ github.repository }}/releases --paginate --jq '.[5:10] | .[] | "\(.id) \(.tag_name)"' | while read id tag; do
+            day=$(echo "$tag" |cut -d'-' -f4)
             if [ $day -ne "02" ] && [ $day -ne "09" ] && [ $day -ne "16" ] && [ $day -ne "24" ]; then
               echo "Removing old release $tag ..."
-              gh api -X DELETE "/repos/${{ github.repository }}/repos/$id" && \
-                gh api -X DELETE "/repos/${{ github.repository }}/git/refs/tags/$tag" 2>/dev/null || true
+              gh api -X DELETE "repos/${{ github.repository }}/releases/$id" && gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$tag" 2>/dev/null || true
             fi
           done
