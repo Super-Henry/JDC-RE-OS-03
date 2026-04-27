@@ -260,33 +260,45 @@ jobs:
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && cp -r builder_repo/${{ env.CUSTOM_FILES_PATH }}. ${{ env.CUSTOM_FILES_PATH }} || true
 
+      # ========== ✅ 自动注入真实编译时间（你要的核心功能） ==========
+      - name: Inject real build timestamp
+        run: |
+          BUILD_DATE=$(date +%s)
+          BUILD_DATE_FRIENDLY=$(date +"%Y-%m-%d %H:%M:%S")
+          echo "BUILD_DATE=\"$BUILD_DATE\"" >> package/base-files/files/etc/os-release
+          mkdir -p files/etc
+          echo "固件编译时间: $BUILD_DATE_FRIENDLY" > files/etc/build_time
+          echo "编译源码提交: ${{ needs.check_commits.outputs.latest_commit_sha }}" >> files/etc/build_time
+
       - name: Use /mnt for more disk space
         if: always()
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
 
-      - name: Restore cache from previous build
-        uses: actions/cache@v4
-        if: always()
-        with:
-          key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
-          restore-keys: |
-            openwrt-build
-          path: |
-            build_dir
-            dl
-            staging_dir
-            tmp
+      # 👇👇👇 这里已注释，禁止恢复旧缓存（防止内核错乱）
+      # - name: Restore cache from previous build
+      #   uses: actions/cache@v4
+      #   if: always()
+      #   with:
+      #     key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
+      #     restore-keys: |
+      #       openwrt-build
+      #     path: |
+      #       build_dir
+      #       dl
+      #       staging_dir
+      #       tmp
 
-      - name: Clean up old caches
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
-            echo "Removing old cache $key ..."
-            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
-          done
+      # 👇👇👇 这里已注释，不清理云端缓存（只注释不删除）
+      # - name: Clean up old caches
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: |
+      #     gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
+      #       echo "Removing old cache $key ..."
+      #       gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
+      #     done
 
       # ========== 清理 OpenSSL 1.1 构建目录 ==========
       - name: Clean OpenSSL 1.1 build dirs
