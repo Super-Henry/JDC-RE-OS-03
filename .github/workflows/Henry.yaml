@@ -167,6 +167,10 @@ jobs:
       - name: Setup configuration and custom files
         run: |
           df -hT
+          
+          # 🔥 修复内核版本不匹配：强制清理旧缓存（关键修复）
+          rm -rf tmp build_dir staging_dir
+          
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           
           # 关键：强制扫描所有本地包
