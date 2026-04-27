@@ -156,6 +156,25 @@ jobs:
           ./scripts/feeds install -a -p luci
           ./scripts/feeds install -a -p packages
 
+      # ========== 【自动修复】qca-nss-crypto 函数声明缺失错误 ==========
+      - name: Fix qca-nss-crypto missing prototype error
+        run: |
+          FILE="build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/qca-nss-crypto-*/v2.0/src/hal/ipq50xx/nss_crypto_ce5.c"
+          if ls $FILE 1> /dev/null 2>&1; then
+            echo "🔧 正在修复 nss_crypto_ce5.c 编译错误..."
+            sed -i '1i int nss_crypto_ce5_ctx_fill(struct nss_crypto_ctx *ctx, struct nss_crypto_session_data *data, uint8_t *key, uint16_t key_len);' $FILE
+            sed -i '1i int nss_crypto_ce5_engine_init(struct platform_device *pdev, struct resource *crypto_res, struct nss_crypto_ce *ce);' $FILE
+            sed -i '1i int nss_crypto_ce5_node_init(struct platform_device *pdev, const char *name);' $FILE
+            echo "✅ 修复完成！"
+          else
+            echo "🔧 尝试修复 Makefile 编译选项..."
+            makefile="package/nss-packages/qca-nss-crypto/Makefile"
+            if [ -f "$makefile" ]; then
+              sed -i '/EXTRA_CFLAGS/ s/$/ -Wno-missing-prototypes -Wno-error/' "$makefile"
+              echo "✅ Makefile 已添加编译忽略参数"
+            fi
+          fi
+
       # ========== 验证 OpenSSL 1.1 Makefile ==========
       - name: Verify OpenSSL 1.1 Makefile
         run: |
@@ -178,6 +197,10 @@ jobs:
       - name: Setup configuration and custom files
         run: |
           df -hT
+          
+          # 🔥 修复内核版本不匹配：强制清理旧缓存（关键修复）
+          rm -rf tmp build_dir staging_dir
+          
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           
           # 关键：强制扫描所有本地包
@@ -386,7 +409,7 @@ jobs:
       - name: Set release date
         run: echo "RELEASE_DATE=$(date +%F)" >> $GITHUB_ENV
       - name: Publish release
-        uses: softprops/action-gh-release@master
+        uses: softprops/gh-release@master
         with:
           files: firmware/*
           tag_name: ${{ env.RELEASE_PREFIX }}-${{ env.RELEASE_DATE }}
