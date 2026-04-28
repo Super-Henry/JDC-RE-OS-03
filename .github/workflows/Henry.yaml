@@ -193,6 +193,7 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
           echo "CONFIG_PACKAGE_pgyvpn=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-pgyvpn-zh-cn=y" >> .config
           # 花生壳
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
@@ -290,7 +291,7 @@ jobs:
       #       staging_dir
       #       tmp
 
-      # 👇👇👇 这里已注释，不清理云端缓存（只注释不删除）
+      # 👇👇👇 这里已注释，不清理云端缓存（防止内核错乱）
       # - name: Clean up old caches
       #   env:
       #     GH_TOKEN: ${{ github.token }}
@@ -338,6 +339,9 @@ jobs:
           echo "检查 OpenSSL 1.1 库..."
           find bin/ -name "*.ipk" | grep -E "(libopenssl1.1)" || echo "⚠️ 未找到 libopenssl1.1"
           echo ""
+          echo "检查 蒲公英 Web 包..."
+          find bin/ -name "luci-app-pgyvpn*"
+          find bin/ -name "luci-i18n-pgyvpn*"
           echo "=== 验证完成 ==="
 
       - name: Upload artifacts
@@ -386,6 +390,7 @@ jobs:
 
             ### 📝 Build Information
             - **Target:** [JDCloud RE-CS-03 后羿/哪吒]
+            - **蒲公英 VPN Web 面板已修复 ✅**
             - **Configuration:** [`${{ env.CONFIG_FILE }}`](${{ env.CONFIG_FILE }})
 
             ### 📋 Notes
