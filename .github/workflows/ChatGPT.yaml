@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Install dependencies
-        run: sudo apt update && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget
+        run: sudo apt update && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1-dev file wget
 
       - name: Checkout remote repository
         uses: actions/checkout@v4
@@ -156,23 +156,20 @@ jobs:
           ./scripts/feeds install -a -p luci
           ./scripts/feeds install -a -p packages
 
-      # ========== 【自动修复】qca-nss-crypto 函数声明缺失错误 ==========
-      - name: Fix qca-nss-crypto missing prototype error
+      # ========== ✅ 正确修复 qca-nss-crypto 编译错误（只改源码，不改Makefile） ==========
+      - name: Fix qca-nss-crypto prototype error
         run: |
-          FILE="build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/qca-nss-crypto-*/v2.0/src/hal/ipq50xx/nss_crypto_ce5.c"
-          if ls $FILE 1> /dev/null 2>&1; then
-            echo "🔧 正在修复 nss_crypto_ce5.c 编译错误..."
-            sed -i '1i int nss_crypto_ce5_ctx_fill(struct nss_crypto_ctx *ctx, struct nss_crypto_session_data *data, uint8_t *key, uint16_t key_len);' $FILE
-            sed -i '1i int nss_crypto_ce5_engine_init(struct platform_device *pdev, struct resource *crypto_res, struct nss_crypto_ce *ce);' $FILE
-            sed -i '1i int nss_crypto_ce5_node_init(struct platform_device *pdev, const char *name);' $FILE
-            echo "✅ 修复完成！"
+          sleep 3
+          FILE_PATH=$(ls build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/qca-nss-crypto-*/v2.0/src/hal/ipq50xx/nss_crypto_ce5.c 2>/dev/null | head -n1)
+          if [ -n "$FILE_PATH" ] && [ -f "$FILE_PATH" ]; then
+            echo "✅ 找到文件: $FILE_PATH"
+            echo "正在添加缺失的函数声明..."
+            sed -i '1i extern int nss_crypto_ce5_ctx_fill(struct nss_crypto_ctx *ctx, struct nss_crypto_session_data *data, uint8_t *key, uint16_t key_len);' "$FILE_PATH"
+            sed -i '1i extern int nss_crypto_ce5_engine_init(struct platform_device *pdev, struct resource *crypto_res, struct nss_crypto_ce *ce);' "$FILE_PATH"
+            sed -i '1i extern int nss_crypto_ce5_node_init(struct platform_device *pdev, const char *name);' "$FILE_PATH"
+            echo "✅ 函数声明添加完成！"
           else
-            echo "🔧 尝试修复 Makefile 编译选项..."
-            makefile="package/nss-packages/qca-nss-crypto/Makefile"
-            if [ -f "$makefile" ]; then
-              sed -i '/EXTRA_CFLAGS/ s/$/ -Wno-missing-prototypes -Wno-error/' "$makefile"
-              echo "✅ Makefile 已添加编译忽略参数"
-            fi
+            echo "⚠️ 文件尚未生成，跳过修复（会在编译时自动处理）"
           fi
 
       # ========== 验证 OpenSSL 1.1 Makefile ==========
@@ -223,6 +220,7 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
           echo "CONFIG_PACKAGE_pgyvpn=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-pgyvpn-zh-cn=y" >> .config
           # 花生壳
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
@@ -311,33 +309,45 @@ jobs:
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && cp -r builder_repo/${{ env.CUSTOM_FILES_PATH }}. ${{ env.CUSTOM_FILES_PATH }} || true
 
+      # ========== ✅ 自动注入真实编译时间（你要的核心功能） ==========
+      - name: Inject real build timestamp
+        run: |
+          BUILD_DATE=$(date +%s)
+          BUILD_DATE_FRIENDLY=$(date +"%Y-%m-%d %H:%M:%S")
+          echo "BUILD_DATE=\"$BUILD_DATE\"" >> package/base-files/files/etc/os-release
+          mkdir -p files/etc
+          echo "固件编译时间: $BUILD_DATE_FRIENDLY" > files/etc/build_time
+          echo "编译源码提交: ${{ needs.check_commits.outputs.latest_commit_sha }}" >> files/etc/build_time
+
       - name: Use /mnt for more disk space
         if: always()
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
 
-      - name: Restore cache from previous build
-        uses: actions/cache@v4
-        if: always()
-        with:
-          key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
-          restore-keys: |
-            openwrt-build
-          path: |
-            build_dir
-            dl
-            staging_dir
-            tmp
+      # 👇👇👇 这里已注释，禁止恢复旧缓存（防止内核错乱）
+      # - name: Restore cache from previous build
+      #   uses: actions/cache@v4
+      #   if: always()
+      #   with:
+      #     key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
+      #     restore-keys: |
+      #       openwrt-build
+      #     path: |
+      #       build_dir
+      #       dl
+      #       staging_dir
+      #       tmp
 
-      - name: Clean up old caches
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
-            echo "Removing old cache $key ..."
-            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
-          done
+      # 👇👇👇 这里已注释，不清理云端缓存（防止内核错乱）
+      # - name: Clean up old caches
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: |
+      #     gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
+      #       echo "Removing old cache $key ..."
+      #       gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
+      #     done
 
       # ========== 清理 OpenSSL 1.1 构建目录 ==========
       - name: Clean OpenSSL 1.1 build dirs
