@@ -339,11 +339,12 @@ jobs:
             staging_dir
             tmp
 
-      # 🔧 核心修复：只删除损坏的 rootfs 目录，保留已编译的目标文件
+      # 🔧 核心修复：删除损坏的 rootfs 目录以及内核编译标记，强制重新生成
       - name: Fix broken rootfs
         run: |
-          echo "🧹 Removing stale rootfs to force rebuild..."
+          echo "🧹 Removing stale rootfs and kernel markers to force rebuild..."
           rm -rf build_dir/target-aarch64_cortex-a53_musl/root-qualcommax
+          rm -f build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/linux-6.12.80/.image
           echo "✅ Rootfs cleaned."
 
       - name: Clean up old caches
