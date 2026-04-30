@@ -325,29 +325,35 @@ jobs:
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
 
-      # 👇👇👇 这里已注释，禁止恢复旧缓存（防止内核错乱）
-      # - name: Restore cache from previous build
-      #   uses: actions/cache@v4
-      #   if: always()
-      #   with:
-      #     key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
-      #     restore-keys: |
-      #       openwrt-build
-      #     path: |
-      #       build_dir
-      #       dl
-      #       staging_dir
-      #       tmp
+      # ✅ 恢复缓存加速（保留正常缓存，只修复 rootfs 缺损）
+      - name: Restore cache from previous build
+        uses: actions/cache@v4
+        if: always()
+        with:
+          key: openwrt-build-${{ needs.check_commits.outputs.latest_commit_sha }}
+          restore-keys: |
+            openwrt-build
+          path: |
+            build_dir
+            dl
+            staging_dir
+            tmp
 
-      # 👇👇👇 这里已注释，不清理云端缓存（防止内核错乱）
-      # - name: Clean up old caches
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
-      #   run: |
-      #     gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
-      #       echo "Removing old cache $key ..."
-      #       gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
-      #     done
+      # 🔧 核心修复：只删除损坏的 rootfs 目录，保留已编译的目标文件
+      - name: Fix broken rootfs
+        run: |
+          echo "🧹 Removing stale rootfs to force rebuild..."
+          rm -rf build_dir/target-aarch64_cortex-a53_musl/root-qualcommax
+          echo "✅ Rootfs cleaned."
+
+      - name: Clean up old caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
+            echo "Removing old cache $key ..."
+            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
+          done
 
       # ========== 清理 OpenSSL 1.1 构建目录 ==========
       - name: Clean OpenSSL 1.1 build dirs
