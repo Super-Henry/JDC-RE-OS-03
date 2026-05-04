@@ -99,13 +99,13 @@ jobs:
             exit 1
           fi
           
-          # === 已禁用原版 pgyvpn，使用本地 pgyvpn-ipq5018 ===
-          # if [ -f "package/OpenOray/pgyvpn/Makefile" ]; then
-          #   sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
-          #   sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
-          #   sed -i '/+libopenssl3/d' package/OpenOray/pgyvpn/Makefile
-          #   echo "✅ pgyvpn Makefile 已强制使用 OpenSSL 1.1"
-          # fi
+          # === 处理蒲公英 (pgyvpn) ===
+          if [ -f "package/OpenOray/pgyvpn/Makefile" ]; then
+            sed -i 's/+libopenssl-1.1/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
+            sed -i 's/+libopenssl\b/+libopenssl1.1/g' package/OpenOray/pgyvpn/Makefile
+            sed -i '/+libopenssl3/d' package/OpenOray/pgyvpn/Makefile
+            echo "✅ pgyvpn Makefile 已强制使用 OpenSSL 1.1"
+          fi
 
           # 修复 luci-app-pgyvpn 的 Makefile
           if [ -f "package/OpenOray/luci-app-pgyvpn/Makefile" ]; then
@@ -192,7 +192,7 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
           # 🔥 使用本地 IPQ5018 专用蒲公英
-          echo "CONFIG_PACKAGE_pgyvpn-ipq5018=y" >> .config
+          #echo "CONFIG_PACKAGE_pgyvpn-ipq5018=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-pgyvpn=y" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-pgyvpn-zh-cn=y" >> .config
           # 花生壳
