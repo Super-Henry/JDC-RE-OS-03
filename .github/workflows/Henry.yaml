@@ -161,6 +161,9 @@ jobs:
       - name: Build firmware
         run: |
           df -hT
+          make package/kernel/qca-ssdk/clean
+          rm -rf build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/qca-ssdk-*
+          rm -rf staging_dir/target-aarch64_cortex-a53_musl/usr/include/qca-ssdk
           make check -j$(nproc) FIXUP=1 V=s
           make -j$(nproc) || make -j1 V=s  # Retry single-threaded on failure
           tar cvzf bin/targets/qualcommax/ipq50xx/snapshots.tar.gz -C bin packages/aarch64_cortex-a53 targets/qualcommax/ipq50xx/packages
