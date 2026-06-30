@@ -6,10 +6,10 @@ index 18fae054d4..29ade5ea0b 100755
  	uci -q batch <<-EOF
  		delete system.@system[0]
  		add system system
--		set system.@system[-1].hostname='OpenWrt'
--		set system.@system[-1].timezone='GMT0'
--		set system.@system[-1].zonename='UTC'
-+		set system.@system[-1].hostname='Houyi'
+-		set system.@system[-1].hostname='FanchmWrt'
+-		set system.@system[-1].timezone='HKT-8'
+-		set system.@system[-1].zonename='Asia/Hong Kong'
++		set system.@system[-1].hostname='FanchmWrt'
 +		set system.@system[-1].timezone='CST-8'
 +		set system.@system[-1].zonename='Asia/Shanghai'
  		set system.@system[-1].ttylogin='0'
