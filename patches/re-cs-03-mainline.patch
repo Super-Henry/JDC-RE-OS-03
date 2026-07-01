@@ -886,7 +886,7 @@ index d3460db582..628faf38fd 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
 +++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
 @@ -51,6 +51,7 @@ case "$(board_name)" in
- elecom,wrc-x3000gs2|\
+ elecom,wrc-x3000gst2|\
  glinet,gl-b3000|\
  iodata,wn-dax3000gr|\
 +jdcloud,re-cs-03|\
