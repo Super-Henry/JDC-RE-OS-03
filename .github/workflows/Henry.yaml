@@ -12,7 +12,7 @@ on:
 
 env:
   REMOTE_REPOSITORY: Super-Henry/openwrt
-  REMOTE_BRANCH: v25.12
+  REMOTE_BRANCH: openwrt-25.12
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: openwrt-henry-25.12.x
@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          latest_sha=$(gh api "repos/${{ env.REMOTE_REPOSITORY }}/commits/${{ env.REMOTE_BRANCH }}" --jq .sha)
+          latest_sha=$(gh api "repos/${{ env.REMOTE_REPOSITORY }}/branches/${{ env.REMOTE_BRANCH }}" --jq .commit.sha)
           packages_sha=$(gh api "repos/${{ env.NSS_PACKAGES_REPOSITORY }}/commits/${{ env.NSS_PACKAGES_REPOSITORY_BRANCH }}" --jq .sha)
           release_body=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .body 2>/dev/null || echo "")
 
@@ -96,6 +96,94 @@ jobs:
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
+          # ==============================================
+          # 全局修复 pre-install 脚本报错 / ubus/service缺失
+          # ==============================================
+          echo "CONFIG_PACKAGE_procd=y" >> .config
+          echo "CONFIG_PACKAGE_ubus=y" >> .config
+          echo "CONFIG_PACKAGE_ubusd=y" >> .config
+          echo "CONFIG_PACKAGE_service=y" >> .config
+          echo "CONFIG_PACKAGE_openwrt-release=y" >> .config
+          echo "CONFIG_TARGET_PERMISSION_SET=y" >> .config
+          echo "CONFIG_PACKAGE_blockd=y" >> .config
+          echo "CONFIG_PACKAGE_lsblk=y" >> .config
+          echo "CONFIG_PACKAGE_dmidecode=y" >> .config
+          
+          # 运行 oldconfig 接受新选项
+          make oldconfig
+          
+          # 然后添加其他插件配置
+          echo "CONFIG_USE_APK=y" >> .config
+          echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
+
+          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
+
+          echo "CONFIG_PACKAGE_luci-compat=y" >> .config
+          echo "CONFIG_PACKAGE_luci-base=y" >> .config
+
+          echo "" >> .config
+          echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
+          echo "CONFIG_PACKAGE_openssl=y" >> .config
+          echo "CONFIG_PACKAGE_coreutils=y" >> .config
+          echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
+          echo "CONFIG_PACKAGE_bash=y" >> .config
+          echo "CONFIG_PACKAGE_jsonfilter=y" >> .config
+          echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
+
+          echo "" >> .config
+          echo "# PassWall2 全部组件（OpenSSL 3.0）" >> .config
+          echo "CONFIG_PACKAGE_passwall2=y" >> .config
+          echo "CONFIG_PACKAGE_xray-core=y" >> .config
+          echo "CONFIG_PACKAGE_xray-plugin=y" >> .config
+          echo "CONFIG_PACKAGE_sing-box=y" >> .config
+          echo "CONFIG_PACKAGE_hysteria=y" >> .config
+          
+          # 🔥 🔥 🔥 这里关闭 naiveproxy 解决 404 错误 🔥 🔥 🔥
+          echo "CONFIG_PACKAGE_naiveproxy=n" >> .config
+          echo "CONFIG_PACKAGE_passwall2_naiveproxy=n" >> .config
+          
+          echo "CONFIG_PACKAGE_tuic-client=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocks-libev-ss-redir=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocks-libev-ss-tunnel=y" >> .config
+          echo "CONFIG_PACKAGE_shadowsocksr-libev-ssr-redir=y" >> .config
+
+          echo "" >> .config
+          echo "# 必须集成内核模块" >> .config
+          echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-nf-tproxy=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-ipt-tproxy=y" >> .config
+
+          echo "" >> .config
+          echo "# 必要工具" >> .config
+          echo "CONFIG_PACKAGE_iptables=y" >> .config
+          echo "CONFIG_PACKAGE_iptables-mod-tproxy=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+          echo "CONFIG_PACKAGE_unzip=y" >> .config
+          echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
+
+          echo "" >> .config
+          echo "# 辅助组件" >> .config
+          echo "CONFIG_PACKAGE_ipset=y" >> .config
+          echo "CONFIG_PACKAGE_libcap=y" >> .config
+          echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+
+          echo "" >> .config
+          echo "# DNS 配置" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq=n" >> .config
+
+          echo "" >> .config
+          echo "# WEB挂载点" >> .config
+          echo "CONFIG_PACKAGE_luci-mod-system=y" >> .config
+          echo "CONFIG_PACKAGE_luci-mod-system-mountpoints=y" >> .config
+          echo "CONFIG_PACKAGE_block-mount=y" >> .config
+
+          # 最后再运行一次 defconfig 确保依赖正确
+          make defconfig -j$(nproc)
+          
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
 
@@ -152,6 +240,20 @@ jobs:
           make -j$(nproc) || make -j1 V=s  # Retry single-threaded on failure
           tar cvzf bin/targets/qualcommax/ipq50xx/snapshots.tar.gz -C bin packages/aarch64_cortex-a53 targets/qualcommax/ipq50xx/packages
 
+      - name: Verify packages in firmware
+        run: |
+          echo "=== 验证包是否被编译 ==="
+          echo "检查 OpenClash 相关包..."
+          find bin/ -name "*.ipk" | grep -E "(openclash)" || echo "⚠️ 未找到 OpenClash 包"
+          echo ""
+          echo "检查 PassWall 相关包..."
+          find bin/ -name "*.ipk" | grep -E "(passwall)" || echo "⚠️ 未找到 PassWall 包"
+          echo ""
+          echo "检查 Argon 主题相关包..."
+          find bin/ -name "*.ipk" | grep -E "(argon)" || echo "⚠️ 未找到 Argon 主题包"
+          echo ""
+          echo "=== 验证完成 ==="
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -161,7 +263,7 @@ jobs:
       - name: Check disk space usage
         if: always()
         run: df -hT
-        
+
   release:
     name: Create release
     needs: [check_commits, build]
