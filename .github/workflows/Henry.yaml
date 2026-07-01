@@ -12,8 +12,8 @@ on:
 
 env:
   REMOTE_REPOSITORY: Super-Henry/Fanchmwrt
-  REMOTE_SOURCE_TAG: v25.12.2
-  CONFIG_FILE: re-cs-03.config
+  REMOTE_BRANCH: fanchmwrt-henry-25.12.2
+  CONFIG_FILE: jdcloud_luban.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: fanchmwrt-henry-25.12.2
   ENV: fanchmwrt-henry-25.12.2
@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          latest_sha=$(gh api "repos/${{ env.REMOTE_REPOSITORY }}/git/ref/tags/${{ env.REMOTE_SOURCE_TAG }}" --jq .object.sha)
+          latest_sha=$(gh api "repos/${{ env.REMOTE_REPOSITORY }}/branches/${{ env.REMOTE_BRANCH }}" --jq .commit.sha)
           packages_sha=$(gh api "repos/${{ env.NSS_PACKAGES_REPOSITORY }}/commits/${{ env.NSS_PACKAGES_REPOSITORY_BRANCH }}" --jq .sha)
           release_body=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .body 2>/dev/null || echo "")
 
@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.REMOTE_REPOSITORY }}
-          ref: ${{ env.REMOTE_SOURCE_TAG }}
+          ref: ${{ env.REMOTE_BRANCH }}
 
       - name: Checkout current repository
         uses: actions/checkout@v4
@@ -292,7 +292,7 @@ jobs:
 
             ### 🔄 Main Repository
             **Repository:** [${{ env.REMOTE_REPOSITORY }}](https://github.com/${{ env.REMOTE_REPOSITORY }})
-            **Source Tag:** `${{ env.REMOTE_SOURCE_TAG }}`
+            **Branch:** `${{ env.REMOTE_BRANCH }}`
             **Commit:** `${{ needs.check_commits.outputs.latest_commit_sha }}`
 
             ### 📦 NSS Packages
