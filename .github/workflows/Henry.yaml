@@ -82,10 +82,12 @@ jobs:
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
           ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          # passwall2 argon openclash 
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
           git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
+          git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
           #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
           #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
@@ -96,6 +98,7 @@ jobs:
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
+
           # ==============================================
           # 全局修复 pre-install 脚本报错 / ubus/service缺失
           # ==============================================
@@ -108,15 +111,14 @@ jobs:
           echo "CONFIG_PACKAGE_blockd=y" >> .config
           echo "CONFIG_PACKAGE_lsblk=y" >> .config
           echo "CONFIG_PACKAGE_dmidecode=y" >> .config
-          
-          # 运行 oldconfig 接受新选项
-          make oldconfig
-          
-          # 然后添加其他插件配置
+          # 然后添加其他插件配置（保留原有全部 echo 命令）
           echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
+          echo "CONFIG_PACKAGE_luci-theme-fanchmwrt=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-firewall-dashboard=y" >> .config
 
+          # 插件全部 直接集成进固件
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
 
@@ -125,6 +127,7 @@ jobs:
 
           echo "" >> .config
           echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
+          echo "CONFIG_PACKAGE_openclash=y" >> .config
           echo "CONFIG_PACKAGE_openssl=y" >> .config
           echo "CONFIG_PACKAGE_coreutils=y" >> .config
           echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
@@ -133,7 +136,7 @@ jobs:
           echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
 
           echo "" >> .config
-          echo "# PassWall2 全部组件（OpenSSL 3.0）" >> .config
+          echo "# PassWall2 依赖（使用 OpenSSL 3.0）" >> .config
           echo "CONFIG_PACKAGE_passwall2=y" >> .config
           echo "CONFIG_PACKAGE_xray-core=y" >> .config
           echo "CONFIG_PACKAGE_xray-plugin=y" >> .config
@@ -181,13 +184,13 @@ jobs:
           echo "CONFIG_PACKAGE_luci-mod-system-mountpoints=y" >> .config
           echo "CONFIG_PACKAGE_block-mount=y" >> .config
 
-          # 最后再运行一次 defconfig 确保依赖正确
-          make defconfig -j$(nproc)
+          # 最后再运行一次 oldconfig 确保依赖正确
+          make oldconfig
           
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
 
-      # ========== ✅ 自动注入真实编译时间（你要的核心功能） ==========
+      # ========== ✅ 自动注入真实编译时间 ==========
       - name: Inject real build timestamp
         run: |
           BUILD_DATE=$(date +%s)
@@ -198,10 +201,12 @@ jobs:
           echo "编译源码提交: ${{ needs.check_commits.outputs.latest_commit_sha }}" >> files/etc/build_time
 
       - name: Use /mnt for more disk space
+          #把源码目录挂载到 /mnt 大容量分区，解决 GitHub 默认磁盘空间不足、编译中途报磁盘满的问题  
         if: always()
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
-          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
+          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
+          df -h
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
@@ -217,6 +222,7 @@ jobs:
             tmp
 
       - name: Clean up old caches
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -244,13 +250,13 @@ jobs:
         run: |
           echo "=== 验证包是否被编译 ==="
           echo "检查 OpenClash 相关包..."
-          find bin/ -name "*.ipk" | grep -E "(openclash)" || echo "⚠️ 未找到 OpenClash 包"
+          find bin/ -name "*.apk" | grep -E "(openclash)" || echo "⚠️ 未找到 OpenClash apk"
           echo ""
           echo "检查 PassWall 相关包..."
-          find bin/ -name "*.ipk" | grep -E "(passwall)" || echo "⚠️ 未找到 PassWall 包"
+          find bin/ -name "*.apk" | grep -E "(passwall)" || echo "⚠️ 未找到 PassWall apk"
           echo ""
           echo "检查 Argon 主题相关包..."
-          find bin/ -name "*.ipk" | grep -E "(argon)" || echo "⚠️ 未找到 Argon 主题包"
+          find bin/ -name "*.apk" | grep -E "(argon)" || echo "⚠️ 未找到 Argon 主题apk"
           echo ""
           echo "=== 验证完成 ==="
 
@@ -301,12 +307,19 @@ jobs:
             **Commit:** `${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}`
 
             ### 📝 Build Information
-            - **Target:** [JDCloud RE-CS-03 后羿/哪吒]
+            - **Target:** [JDCloud RE-CS-03 后羿/哪吒 IPQ50xx]
             - **Configuration:** [`${{ env.CONFIG_FILE }}`](${{ env.CONFIG_FILE }})
+
+            ### 📦 插件说明（全部预装内置固件，刷机直接使用，附带离线APK备份）
+            - Passwall2 全套 (OpenSSL 3.0)
+            - OpenClash 全套 (OpenSSL 3.0)
+            - Argon 主题 + 配置
+            - OpenAppFilter(OAF) 七层DPI应用管控过滤
 
             ### 📋 Notes
             - Automated build triggered by ${{ github.event_name }}
             - Previous releases are automatically cleaned up (keeping latest 5)
+            - 固件内置全套插件，压缩包内APK仅作备份重装使用
             ---
             _Generated by GitHub Actions 🤖_
             # 👇👇👇 已修复：强制绑定 fanchmwrt-henry-25.12.4 分支
@@ -319,7 +332,7 @@ jobs:
           df -hT
           gh api repos/${{ github.repository }}/releases --paginate --jq '.[5:10] | .[] | "\(.id) \(.tag_name)"' | while read id tag; do
             day=$(echo "$tag" |cut -d'-' -f4)
-            if [ $day -ne "02" ] && [ $day -ne "09" ] && [ $day -ne "16" ] && [ $day -ne "24" ]; then
+            if [ $day -ne "01" ] && [ $day -ne "08" ] && [ $day -ne "15" ] && [ $day -ne "23" ]; then
               echo "Removing old release $tag ..."
               gh api -X DELETE "repos/${{ github.repository }}/releases/$id" && gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$tag" 2>/dev/null || true
             fi
