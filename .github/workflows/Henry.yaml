@@ -55,6 +55,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: sudo apt update && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget
+
       - name: Checkout remote repository
         uses: actions/checkout@v4
         with:
@@ -76,12 +77,13 @@ jobs:
               [ -f "$patch" ] && git apply --verbose "$patch"
             done
           fi
-            
+
       - name: Update and install feeds
         run: |
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
           ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          # passwall2 argon openclash oaf
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
@@ -102,12 +104,6 @@ jobs:
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
-          # ==============================================
-          # 已改回 软浮点 完美适配官方架构
-          # ==============================================
-          echo "CONFIG_SOFT_FLOAT=y" >> .config
-          echo "CONFIG_HARD_FLOAT=n" >> .config
-          echo "CONFIG_MIPS_FPU_EMULATOR=n" >> .config
 
           # ==============================================
           # 全局修复 pre-install 脚本报错 / ubus/service缺失
@@ -121,20 +117,17 @@ jobs:
           echo "CONFIG_PACKAGE_blockd=y" >> .config
           echo "CONFIG_PACKAGE_lsblk=y" >> .config
           echo "CONFIG_PACKAGE_dmidecode=y" >> .config
-          
-          # 运行 oldconfig 接受新选项
-          make oldconfig
-          
-          # 然后添加其他插件配置
+          # 然后添加其他插件配置（保留原有全部 echo 命令）
           echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
 
+          # 插件全部 直接集成
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
 
           # ===================== OAF编译配置（仅开启luci-app-oaf自动依赖全套组件） =====================
-          echo "CONFIG_PACKAGE_luci-app-oaf=m" >> .config
+          echo "CONFIG_PACKAGE_luci-app-oaf=y" >> .config
           # DPI流量识别必须依赖iptables filter内核模块，强制内置固件
           echo "CONFIG_PACKAGE_kmod-ipt-filter=y" >> .config
           # ======================================================================================
@@ -144,6 +137,7 @@ jobs:
 
           echo "" >> .config
           echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
+          echo "CONFIG_PACKAGE_openclash=y" >> .config
           echo "CONFIG_PACKAGE_openssl=y" >> .config
           echo "CONFIG_PACKAGE_coreutils=y" >> .config
           echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
@@ -152,7 +146,7 @@ jobs:
           echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
 
           echo "" >> .config
-          echo "# PassWall2 全部组件（OpenSSL 3.0）" >> .config
+          echo "# PassWall2 依赖（使用 OpenSSL 3.0）" >> .config
           echo "CONFIG_PACKAGE_passwall2=y" >> .config
           echo "CONFIG_PACKAGE_xray-core=y" >> .config
           echo "CONFIG_PACKAGE_xray-plugin=y" >> .config
@@ -200,8 +194,8 @@ jobs:
           echo "CONFIG_PACKAGE_luci-mod-system-mountpoints=y" >> .config
           echo "CONFIG_PACKAGE_block-mount=y" >> .config
 
-          # 最后再运行一次 defconfig 确保依赖正确
-          make defconfig -j$(nproc)
+          # 最后再运行一次 oldconfig 确保依赖正确
+          make oldconfig
           
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
@@ -217,10 +211,12 @@ jobs:
           echo "编译源码提交: ${{ needs.check_commits.outputs.latest_commit_sha }}" >> files/etc/build_time
 
       - name: Use /mnt for more disk space
+          #把源码目录挂载到 /mnt 大容量分区，解决 GitHub 默认磁盘空间不足、编译中途报磁盘满的问题  
         if: always()
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
-          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
+          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
+          df -h
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
@@ -236,6 +232,7 @@ jobs:
             tmp
 
       - name: Clean up old caches
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -342,11 +339,11 @@ jobs:
       - name: Clean up old releases
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        run: |	
           df -hT
           gh api repos/${{ github.repository }}/releases --paginate --jq '.[5:10] | .[] | "\(.id) \(.tag_name)"' | while read id tag; do
             day=$(echo "$tag" |cut -d'-' -f4)
-            if [ $day -ne "02" ] && [ $day -ne "09" ] && [ $day -ne "16" ] && [ $day -ne "24" ]; then
+            if [ $day -ne "01" ] && [ $day -ne "08" ] && [ $day -ne "15" ] && [ $day -ne "23" ]; then
               echo "Removing old release $tag ..."
               gh api -X DELETE "repos/${{ github.repository }}/releases/$id" && gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$tag" 2>/dev/null || true
             fi
