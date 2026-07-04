@@ -19,6 +19,8 @@ env:
   ENV: openwrt-henry-25.12.2
   NSS_PACKAGES_REPOSITORY: Super-Henry/NSS-PACKAGES
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
+  # 新增：兜底修复Rust1.90 CI LLVM阻断报错
+  RUST_BOOTSTRAP_CONFIG_LLVM_DOWNLOAD_CI_LLVM: if-unchanged
 
 jobs:
   check_commits:
@@ -81,7 +83,13 @@ jobs:
         run: |
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          ./scripts/feeds update -a
+          # 新增：修复Rust1.90 CI LLVM配置，彻底消除panic报错
+          if [ -d feeds/packages/lang/rust/src/bootstrap ]; then
+              sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/' feeds/packages/lang/rust/src/bootstrap/config.toml.in
+              echo "✅ Rust CI LLVM 配置补丁已写入完成"
+          fi
+          ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
           # passwall2 argon openclash oaf
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
@@ -225,6 +233,17 @@ jobs:
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
           df -h
 
+      # 调换缓存顺序：先清理旧缓存，再恢复缓存（修复云端缓存被当场清空问题）
+      - name: Clean up old caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
+            echo "Removing old cache $key ..."
+            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
+          done
+
       - name: Restore cache from previous build
         uses: actions/cache@v4
         if: always()
@@ -237,16 +256,6 @@ jobs:
             dl
             staging_dir
             tmp
-
-      - name: Clean up old caches
-
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
-            echo "Removing old cache $key ..."
-            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
-          done
 
       - name: Download packages
         run: |
