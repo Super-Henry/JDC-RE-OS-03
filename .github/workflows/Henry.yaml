@@ -116,7 +116,8 @@ jobs:
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-fanchmwrt=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-firewall-dashboard=y" >> .config
+          # 仪表盘配置名称与feeds包完全匹配，正确
+          echo "CONFIG_PACKAGE_luci-app-fwx-dashboard=y" >> .config
 
           # 插件全部 直接集成进固件
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
@@ -201,7 +202,7 @@ jobs:
           echo "编译源码提交: ${{ needs.check_commits.outputs.latest_commit_sha }}" >> files/etc/build_time
 
       - name: Use /mnt for more disk space
-          #把源码目录挂载到 /mnt 大容量分区，解决 GitHub 默认磁盘空间不足、编译中途报磁盘满的问题  
+        #把源码目录挂载到 /mnt 大容量分区，解决 GitHub 默认磁盘空间不足、编译中途报磁盘满的问题  
         if: always()
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
@@ -249,6 +250,9 @@ jobs:
       - name: Verify packages in firmware
         run: |
           echo "=== 验证包是否被编译 ==="
+          echo "检查 fwx-dashboard 仪表盘包..."
+          find bin/ -name "*fwx-dashboard*.apk" || echo "⚠️ 未编译 luci-app-fwx-dashboard"
+          echo ""
           echo "检查 OpenClash 相关包..."
           find bin/ -name "*.apk" | grep -E "(openclash)" || echo "⚠️ 未找到 OpenClash apk"
           echo ""
@@ -257,7 +261,6 @@ jobs:
           echo ""
           echo "检查 Argon 主题相关包..."
           find bin/ -name "*.apk" | grep -E "(argon)" || echo "⚠️ 未找到 Argon 主题apk"
-          echo ""
           echo "=== 验证完成 ==="
 
       - name: Upload artifacts
