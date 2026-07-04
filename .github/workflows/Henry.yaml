@@ -93,6 +93,16 @@ jobs:
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
 
+          # ===================== 新增 OpenAppFilter =====================
+          git clone https://github.com/Super-Henry/OpenAppFilter.git package/OpenAppFilter
+          # 关键：注册OAF三个真实包名，构建系统识别配置，oldconfig不会删除配置
+          ./scripts/feeds install -p package/OpenAppFilter appfilter
+          ./scripts/feeds install -p package/OpenAppFilter luci-app-oaf
+          ./scripts/feeds install -p package/OpenAppFilter oaf
+          ls -la package/OpenAppFilter/
+          # ==============================================================
+
+
       - name: Setup configuration and custom files
         run: |
           df -hT
@@ -119,12 +129,18 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
 
+          # ===================== OAF编译配置（仅开启luci-app-oaf=y，自动拉齐appfilter、kmod-oaf全套依赖 =====================
+          echo "CONFIG_PACKAGE_luci-app-oaf=y" >> .config
+          # DPI流量识别必须依赖iptables filter内核模块，强制内置固件
+          echo "CONFIG_PACKAGE_kmod-ipt-filter=y" >> .config
+          # ======================================================================================
+
           echo "CONFIG_PACKAGE_luci-compat=y" >> .config
           echo "CONFIG_PACKAGE_luci-base=y" >> .config
 
           echo "" >> .config
           echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
-
+          echo "CONFIG_PACKAGE_openclash=y" >> .config
           echo "CONFIG_PACKAGE_openssl=y" >> .config
           echo "CONFIG_PACKAGE_coreutils=y" >> .config
           echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
@@ -183,6 +199,10 @@ jobs:
 
           # 最后再运行一次 oldconfig 确保依赖正确
           make oldconfig
+          # 校验OAF三条配置是否完整保留
+          echo "===== 校验OAF完整配置 ====="
+          grep -E "CONFIG_PACKAGE_(appfilter|luci-app-oaf|kmod-oaf)" .config
+          echo "=========================="
           
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
@@ -203,7 +223,7 @@ jobs:
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
-          df -hT
+          df -h
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
@@ -219,7 +239,7 @@ jobs:
             tmp
 
       - name: Clean up old caches
-        if: always()
+
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -255,7 +275,10 @@ jobs:
           echo "检查 Argon 主题相关包..."
           find bin/ -name "*.apk" | grep -E "(argon)" || echo "⚠️ 未找到 Argon 主题apk"
           echo ""
-
+          echo "=== 检查完整OAF三套编译产物 ==="
+          find bin/ -name "appfilter_*.apk" && echo "✅ appfilter(OAF后台服务)存在" || echo "❌ appfilter(OAF后台服务)缺失"
+          find bin/ -name "kmod-oaf_*.apk" && echo "✅ kmod-oaf内核模块存在" || echo "❌ kmod-oaf内核模块缺失"
+          find bin/ -name "luci-app-oaf_*.apk" && echo "✅ luci-app-oaf面板包存在" || echo "❌ luci-app-oaf面板包缺失"
 
           echo "=== 验证完成 ==="
 
@@ -326,7 +349,7 @@ jobs:
       - name: Clean up old releases
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        run: |	
           df -hT
           gh api repos/${{ github.repository }}/releases --paginate --jq '.[5:10] | .[] | "\(.id) \(.tag_name)"' | while read id tag; do
             day=$(echo "$tag" |cut -d'-' -f4)
