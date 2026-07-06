@@ -82,23 +82,23 @@ jobs:
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
           ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
-          # passwall2 argon openclash 
+          # passwall2 argon
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
           git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
-          git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
+
           #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
           #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
+
 
       - name: Setup configuration and custom files
         run: |
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
-
           # ==============================================
           # 全局修复 pre-install 脚本报错 / ubus/service缺失
           # ==============================================
@@ -115,66 +115,8 @@ jobs:
           echo "CONFIG_USE_APK=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
-          echo "CONFIG_PACKAGE_luci-theme-fanchmwrt=y" >> .config
 
-          # ====================== FWX完整全套配置注入 ======================
-          echo "# ====================== 1. FWX底层核心驱动/服务（运行必需） ======================" >> .config
-          echo "CONFIG_DEFAULT_fwxd=y" >> .config
-          echo "CONFIG_DEFAULT_kmod-fwx=y" >> .config
-          echo "CONFIG_DEFAULT_libfwx_common=y" >> .config
-          echo "CONFIG_PACKAGE_fwx=y" >> .config
-          echo "CONFIG_PACKAGE_fwxd=y" >> .config
-          echo "CONFIG_PACKAGE_libfwx_common=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-fwx=y" >> .config
-          echo "CONFIG_PACKAGE_fwx-qos=y" >> .config
-          echo "CONFIG_PACKAGE_fwx-ddos=y" >> .config
 
-          echo "# ====================== 2. LuCI页面默认选中控制项 ======================" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-appfilter=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-dashboard=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-dashboard-setting=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-feature=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-macfilter=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-network=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-record=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-resources=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-session-stat=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-system=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-user=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-user-record=y" >> .config
-
-          echo "# ====================== 3. FWX完整Web管理界面全套组件 ======================" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-app-center=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-appfilter=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-dashboard=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-dashboard-setting=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-feature=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-mac-blacklist=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-macfilter=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-network=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-record=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-record-whitelist=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-resources=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-session-stat=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-system=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-user=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-user-record=y" >> .config
-
-          echo "# ====================== 4. FWX界面对应中文语言包 ======================" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-appfilter-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-dashboard-setting-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-dashboard-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-feature-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-macfilter-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-network-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-record-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-session-stat-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-system-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-user-record-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-user-zh-cn=y" >> .config
-
-          # 插件全部 直接集成进固件
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
 
@@ -183,7 +125,7 @@ jobs:
 
           echo "" >> .config
           echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
-          echo "CONFIG_PACKAGE_openclash=y" >> .config
+
           echo "CONFIG_PACKAGE_openssl=y" >> .config
           echo "CONFIG_PACKAGE_coreutils=y" >> .config
           echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
@@ -192,7 +134,7 @@ jobs:
           echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
 
           echo "" >> .config
-          echo "# PassWall2 依赖（使用 OpenSSL 3.0）" >> .config
+          echo "# PassWall2 全部组件（OpenSSL 3.0）" >> .config
           echo "CONFIG_PACKAGE_passwall2=y" >> .config
           echo "CONFIG_PACKAGE_xray-core=y" >> .config
           echo "CONFIG_PACKAGE_xray-plugin=y" >> .config
@@ -262,7 +204,7 @@ jobs:
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
           sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
-          df -h
+          df -hT
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
@@ -278,7 +220,7 @@ jobs:
             tmp
 
       - name: Clean up old caches
-        if: always()
+
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -305,9 +247,6 @@ jobs:
       - name: Verify packages in firmware
         run: |
           echo "=== 验证包是否被编译 ==="
-          echo "检查 fwx-dashboard 仪表盘包..."
-          find bin/ -name "*fwx-dashboard*.apk" || echo "⚠️ 未编译 luci-app-fwx-dashboard"
-          echo ""
           echo "检查 OpenClash 相关包..."
           find bin/ -name "*.apk" | grep -E "(openclash)" || echo "⚠️ 未找到 OpenClash apk"
           echo ""
@@ -370,10 +309,7 @@ jobs:
 
             ### 📦 插件说明（全部预装内置固件，刷机直接使用，附带离线APK备份）
             - Passwall2 全套 (OpenSSL 3.0)
-            - OpenClash 全套 (OpenSSL 3.0)
             - Argon 主题 + 配置
-            - FWX 完整防火墙面板全套（限速/防攻击/MAC过滤/会话统计）
-            - OpenAppFilter(OAF) 七层DPI应用管控过滤
 
             ### 📋 Notes
             - Automated build triggered by ${{ github.event_name }}
