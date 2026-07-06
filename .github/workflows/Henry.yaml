@@ -242,7 +242,7 @@ jobs:
           echo "CONFIG_PACKAGE_luci-i18n-fwx-system-zh-cn=y" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-fwx-user-record-zh-cn=y" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-fwx-user-zh-cn=y" >> .config
-	  
+
           # ====================== Docker 完整编译配置开始 =====================
           echo "" >> .config
           echo "# Docker 软件包" >> .config
