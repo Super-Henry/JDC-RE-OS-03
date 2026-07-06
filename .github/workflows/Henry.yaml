@@ -7,20 +7,18 @@ permissions:
 on:
   #push:
     #branches:
-      #- openwrt-henry-25.12.2
+      #- openwrt-henry-25.12.4
   workflow_dispatch:
 
 env:
   REMOTE_REPOSITORY: Super-Henry/openwrt
-  REMOTE_SOURCE_TAG: v25.12.2
+  REMOTE_SOURCE_TAG: v25.12.4
   CONFIG_FILE: re-cs-03.config
   CUSTOM_FILES_PATH: files/
-  RELEASE_PREFIX: openwrt-henry-25.12.2
-  ENV: openwrt-henry-25.12.2
+  RELEASE_PREFIX: openwrt-henry-25.12.4
+  ENV: openwrt-henry-25.12.4
   NSS_PACKAGES_REPOSITORY: Super-Henry/NSS-PACKAGES
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
-  # 新增：兜底修复Rust1.90 CI LLVM阻断报错
-  RUST_BOOTSTRAP_CONFIG_LLVM_DOWNLOAD_CI_LLVM: if-unchanged
 
 jobs:
   check_commits:
@@ -83,14 +81,8 @@ jobs:
         run: |
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a
-          # 新增：修复Rust1.90 CI LLVM配置，彻底消除panic报错
-          if [ -d feeds/packages/lang/rust/src/bootstrap ]; then
-              sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/' feeds/packages/lang/rust/src/bootstrap/config.toml.in
-              echo "✅ Rust CI LLVM 配置补丁已写入完成"
-          fi
-          ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
-          # passwall2 argon openclash oaf
+          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          # passwall2 argon openclash 
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
@@ -116,6 +108,7 @@ jobs:
           df -hT
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
+
           # ==============================================
           # 全局修复 pre-install 脚本报错 / ubus/service缺失
           # ==============================================
@@ -215,7 +208,7 @@ jobs:
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           [ -d "builder_repo/${{ env.CUSTOM_FILES_PATH }}" ] && mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }} || true
 
-      # ========== ✅ 自动注入真实编译时间（你要的核心功能） ==========
+      # ========== ✅ 自动注入真实编译时间 ==========
       - name: Inject real build timestamp
         run: |
           BUILD_DATE=$(date +%s)
@@ -226,23 +219,12 @@ jobs:
           echo "编译源码提交: ${{ needs.check_commits.outputs.latest_commit_sha }}" >> files/etc/build_time
 
       - name: Use /mnt for more disk space
-          #把源码目录挂载到 /mnt 大容量分区，解决 GitHub 默认磁盘空间不足、编译中途报磁盘满的问题  
+        #把源码目录挂载到 /mnt 大容量分区，解决 GitHub 默认磁盘空间不足、编译中途报磁盘满的问题  
         if: always()
         run: |
           sudo mkdir -p /mnt/upper /mnt/work && sudo chmod a+w /mnt/upper
-          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd)
-          df -h
+          sudo mount -t overlay -olowerdir=$(pwd),upperdir=/mnt/upper,workdir=/mnt/work overlay $(pwd) && df -hT
 
-      # 调换缓存顺序：先清理旧缓存，再恢复缓存（修复云端缓存被当场清空问题）
-      - name: Clean up old caches
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
-            echo "Removing old cache $key ..."
-            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
-          done
 
       - name: Restore cache from previous build
         uses: actions/cache@v4
@@ -256,6 +238,16 @@ jobs:
             dl
             staging_dir
             tmp
+
+      - name: Clean up old caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/caches --paginate --jq '.actions_caches[0:] | .[] |.key' | while read key; do
+            echo "Removing old cache $key ..."
+            gh api -X DELETE "/repos/${{ github.repository }}/actions/caches?key=$key" 2>/dev/null || true
+          done
 
       - name: Download packages
         run: |
@@ -284,11 +276,6 @@ jobs:
           echo "检查 Argon 主题相关包..."
           find bin/ -name "*.apk" | grep -E "(argon)" || echo "⚠️ 未找到 Argon 主题apk"
           echo ""
-          echo "=== 检查完整OAF三套编译产物 ==="
-          find bin/ -name "appfilter_*.apk" && echo "✅ appfilter(OAF后台服务)存在" || echo "❌ appfilter(OAF后台服务)缺失"
-          find bin/ -name "kmod-oaf_*.apk" && echo "✅ kmod-oaf内核模块存在" || echo "❌ kmod-oaf内核模块缺失"
-          find bin/ -name "luci-app-oaf_*.apk" && echo "✅ luci-app-oaf面板包存在" || echo "❌ luci-app-oaf面板包缺失"
-
           echo "=== 验证完成 ==="
 
       - name: Upload artifacts
@@ -352,13 +339,13 @@ jobs:
             - Previous releases are automatically cleaned up (keeping latest 5)
             ---
             _Generated by GitHub Actions 🤖_
-            # 👇👇👇 已修复：强制绑定 openwrt-henry-25.12.2 分支
-            target_commitish: openwrt-henry-25.12.2
+            # 👇👇👇 已修复：强制绑定 openwrt-henry-25.12.4 分支
+            target_commitish: openwrt-henry-25.12.4
 
       - name: Clean up old releases
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |	
+        run: |
           df -hT
           gh api repos/${{ github.repository }}/releases --paginate --jq '.[5:10] | .[] | "\(.id) \(.tag_name)"' | while read id tag; do
             day=$(echo "$tag" |cut -d'-' -f4)
