@@ -317,6 +317,7 @@ jobs:
             - Passwall2 全套 (OpenSSL 3.0)
             - OpenClash 全套 (OpenSSL 3.0)
             - Argon 主题 + 配置
+            - FWX 完整防火墙面板全套（限速/防攻击/MAC过滤/会话统计）
             - OpenAppFilter(OAF) 七层DPI应用管控过滤
 
             ### 📋 Notes
