@@ -82,6 +82,8 @@ jobs:
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
           ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          # 新增：注册本地 package/fcm 下全部FWX底层+LuCI面板包
+          ./scripts/feeds install package/fcm/*
           # passwall2 argon openclash 
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
@@ -93,8 +95,6 @@ jobs:
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
 
-          # 本地已有package/fwx源码，仅注册包，无需clone
-          ./scripts/feeds install -p package/fcm -a
       - name: Setup configuration and custom files
         run: |
           df -hT
@@ -109,7 +109,7 @@ jobs:
           echo "CONFIG_PACKAGE_ubusd=y" >> .config
           echo "CONFIG_PACKAGE_service=y" >> .config
           echo "CONFIG_PACKAGE_openwrt-release=y" >> .config
-          echo "CONFIG_TARGET_PERMISSION_SET=y" >> .config
+          # 已删除无效配置 CONFIG_TARGET_PERMISSION_SET
           echo "CONFIG_PACKAGE_blockd=y" >> .config
           echo "CONFIG_PACKAGE_lsblk=y" >> .config
           echo "CONFIG_PACKAGE_dmidecode=y" >> .config
@@ -118,6 +118,8 @@ jobs:
           echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
           echo "CONFIG_PACKAGE_luci-theme-fanchmwrt=y" >> .config
+          # 仪表盘配置名称与feeds包完全匹配，完整FWX段末尾已重复包含，保留不影响
+          echo "CONFIG_PACKAGE_luci-app-fwx-dashboard=y" >> .config
 
           # 插件全部 直接集成进固件
           echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
