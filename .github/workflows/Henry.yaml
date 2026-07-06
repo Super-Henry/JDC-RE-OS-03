@@ -60,7 +60,6 @@ jobs:
         with:
           repository: ${{ env.REMOTE_REPOSITORY }}
           ref: ${{ env.REMOTE_SOURCE_TAG }}
-          fetch-tags: true
       - name: Checkout current repository
         uses: actions/checkout@v4
         with:
