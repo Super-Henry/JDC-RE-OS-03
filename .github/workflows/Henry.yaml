@@ -191,12 +191,9 @@ jobs:
           echo "CONFIG_DEFAULT_fwxd=y" >> .config
           echo "CONFIG_DEFAULT_kmod-fwx=y" >> .config
           echo "CONFIG_DEFAULT_libfwx_common=y" >> .config
-          echo "CONFIG_PACKAGE_fwx=y" >> .config
           echo "CONFIG_PACKAGE_fwxd=y" >> .config
           echo "CONFIG_PACKAGE_libfwx_common=y" >> .config
           echo "CONFIG_PACKAGE_kmod-fwx=y" >> .config
-          echo "CONFIG_PACKAGE_fwx-qos=y" >> .config
-          echo "CONFIG_PACKAGE_fwx-ddos=y" >> .config
 
           echo "# ====================== 2. LuCI页面默认选中控制项 ======================" >> .config
           echo "CONFIG_DEFAULT_luci-app-fwx-appfilter=y" >> .config
