@@ -81,13 +81,32 @@ jobs:
         run: |
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
-          # passwall2 argon
+          ./scripts/feeds update -a
+          
+          # ========== 修复Rust1.90 CI LLVM报错 双路径兼容 ==========
+          RUST_TPL="feeds/packages/lang/rust/src/bootstrap/config.toml.in"
+          if [ -f "$RUST_TPL" ]; then
+              sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/' "$RUST_TPL"
+              echo "✅ 主路径Rust LLVM补丁写入完成"
+          else
+              RUST_TPL2="package/feeds/packages/rust/src/bootstrap/config.toml.in"
+              if [ -f "$RUST_TPL2" ]; then
+                  sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/' "$RUST_TPL2"
+                  echo "✅ 备用路径Rust LLVM补丁写入完成"
+              else
+                  echo "⚠️ 未找到rust bootstrap模板，依靠编译环境变量兜底"
+              fi
+          fi
+          # ======================================================
+          
+          ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
+          
+          # passwall2 argon openclash 
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
           git clone https://github.com/jerrykuku/luci-theme-argon.git package/feeds/luci/luci-theme-argon
           git clone https://github.com/jerrykuku/luci-app-argon-config.git package/feeds/luci/luci-app-argon-config
-
+          git clone https://github.com/Super-Henry/OpenClash.git package/luci-app-openclash
           #git clone https://github.com/dgyangxf/luci-app-vlmcsd.git package/feeds/luci/luci-app-vlmcsd
           #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
@@ -139,7 +158,7 @@ jobs:
 
           echo "" >> .config
           echo "# OpenClash 依赖（OpenSSL 3.0）" >> .config
-
+          echo "CONFIG_PACKAGE_openclash=y" >> .config
           echo "CONFIG_PACKAGE_openssl=y" >> .config
           echo "CONFIG_PACKAGE_coreutils=y" >> .config
           echo "CONFIG_PACKAGE_coreutils-nohup=y" >> .config
@@ -330,6 +349,8 @@ jobs:
       - name: Build firmware
         env: 
           CMAKE_POLICY_VERSION_MINIMUM: 3.5
+          # 兜底强制修复Rust CI LLVM下载策略，防止sed未生效
+          RUST_BOOTSTRAP_DOWNLOAD_CI_LLVM: "if-unchanged"
         run: |
           df -hT
           make check -j$(nproc) FIXUP=1 V=s
@@ -411,6 +432,7 @@ jobs:
 
             ### 📦 插件说明（全部预装内置固件，刷机直接使用，附带离线APK备份）
             - Passwall2 全套 (OpenSSL 3.0)
+            - OpenClash 全套 (OpenSSL 3.0)
             - Argon 主题 + 配置面板
             - OpenAppFilter(OAF) 七层DPI应用管控过滤
             - Docker CE + Dockerman可视化面板（默认数据目录/mnt/samba/docker）
