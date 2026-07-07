@@ -60,7 +60,7 @@ jobs:
         with:
           repository: ${{ env.REMOTE_REPOSITORY }}
           ref: ${{ env.REMOTE_SOURCE_TAG }}
-
+          fetch-tags: true
       - name: Checkout current repository
         uses: actions/checkout@v4
         with:
@@ -312,7 +312,7 @@ jobs:
             tmp
 
       - name: Clean up old caches
-
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -411,7 +411,6 @@ jobs:
 
             ### 📦 插件说明（全部预装内置固件，刷机直接使用，附带离线APK备份）
             - Passwall2 全套 (OpenSSL 3.0)
-            - OpenClash 全套 (OpenSSL 3.0)
             - Argon 主题 + 配置面板
             - OpenAppFilter(OAF) 七层DPI应用管控过滤
             - Docker CE + Dockerman可视化面板（默认数据目录/mnt/samba/docker）
