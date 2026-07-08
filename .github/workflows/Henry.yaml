@@ -81,11 +81,6 @@ jobs:
         run: |
           df -hT
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a 
-          ./scripts/feeds install -a -p luci 
-          ./scripts/feeds install -a -p fanchmwrt 
-          ./scripts/feeds install -a -p packages 
-
           # passwall2 argon openclash 
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
@@ -96,70 +91,16 @@ jobs:
           #git clone https://github.com/im-0/openwrt-package.vlmcsd.git package/utils/vlmcsd
           #git clone https://github.com/sbwml/openwrt-qBittorrent package/feeds/qBittorrent
           unzip builder_repo/luci-app-accesscontrol.zip -d package/feeds/luci/applications
+          ./scripts/feeds update -a 
+          ./scripts/feeds install -a
+          make defconfig -j$(nproc)
+
 
       - name: Setup configuration and custom files
         run: |
           df -hT
-          mv builder_repo/${{ env.CONFIG_FILE }} .config
-          # ====================== FWX完整全套配置注入 ======================
-          echo "# ====================== 1. FWX底层核心驱动/服务（运行必需） ======================" >> .config
-          echo "CONFIG_DEFAULT_fwxd=y" >> .config
-          echo "CONFIG_DEFAULT_kmod-fwx=y" >> .config
-          echo "CONFIG_DEFAULT_libfwx_common=y" >> .config
-          echo "CONFIG_PACKAGE_fwxd=y" >> .config
-          echo "CONFIG_PACKAGE_libfwx_common=y" >> .config
-          echo "CONFIG_PACKAGE_kmod-fwx=y" >> .config
+          cat builder_repo/${{ env.CONFIG_FILE }} >> .config
 
-          echo "# ====================== 2. LuCI页面默认选中控制项 ======================" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-appfilter=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-dashboard=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-dashboard-setting=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-feature=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-macfilter=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-network=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-record=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-resources=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-session-stat=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-system=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-user=y" >> .config
-          echo "CONFIG_DEFAULT_luci-app-fwx-user-record=y" >> .config
-
-          echo "# ====================== 3. FWX完整Web管理界面全套组件 ======================" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-app-center=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-appfilter=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-dashboard=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-dashboard-setting=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-feature=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-mac-blacklist=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-macfilter=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-network=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-record=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-record-whitelist=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-resources=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-session-stat=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-system=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-user=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-fwx-user-record=y" >> .config
-
-          echo "# ====================== 4. FWX界面对应中文语言包 ======================" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-appfilter-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-dashboard-setting-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-dashboard-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-feature-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-macfilter-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-network-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-record-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-session-stat-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-system-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-user-record-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-fwx-user-zh-cn=y" >> .config
-
-          # fwxd 运行依赖库，防止后台服务崩溃
-          echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
-          echo "CONFIG_PACKAGE_libmosquitto=y" >> .config
-          echo "CONFIG_PACKAGE_libcurl=y" >> .config
-          echo "CONFIG_PACKAGE_lm-sensors=y" >> .config
 
           # ==============================================
           # 全局修复 pre-install 脚本报错 / ubus/service缺失
