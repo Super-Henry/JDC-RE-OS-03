@@ -80,7 +80,6 @@ jobs:
       - name: Update and install feeds
         run: |
           df -hT
-          echo "src-link fanchmwrt $(pwd)/package/fcm" >> feeds.conf.default
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
           ./scripts/feeds update -a 
           ./scripts/feeds install -a -p luci 
