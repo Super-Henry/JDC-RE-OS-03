@@ -80,10 +80,13 @@ jobs:
       - name: Update and install feeds
         run: |
           df -hT
+          echo "src-link fanchmwrt $(pwd)/package/fcm" >> feeds.conf.default
           #echo 'src-git custom https://github.com/kiddin9/kwrt-packages' >> feeds.conf.default
-          ./scripts/feeds update -a && ./scripts/feeds install -a -p luci && ./scripts/feeds install -a -p packages
-          # 新增：注册本地 package/fcm 下全部FWX底层+LuCI面板包
-          ./scripts/feeds install package/fcm/*
+          ./scripts/feeds update -a 
+          ./scripts/feeds install -a -p luci 
+          ./scripts/feeds install -a -p fanchmwrt 
+          ./scripts/feeds install -a -p packages 
+
           # passwall2 argon openclash 
           git clone https://github.com/Super-Henry/Openwrt-Passwall2.git package/feeds/luci/luci-app-passwall2
           git clone https://github.com/Super-Henry/Openwrt-Passwall-Packages.git package/utils/passwall2
